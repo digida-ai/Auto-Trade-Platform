@@ -1,0 +1,588 @@
+// src/screens/ai_quant_lab/QuantModulePanel_AdvancedDisplays_Factors.cpp
+//
+// ADVANCED-category renderers for factor + strategy analytics:
+// factor_evaluation (IC / evaluation report / risk metrics)
+// and strategy_builder (create_*, portfolio_metrics).
+//
+// Part of the partial-class split of QuantModulePanel_AdvancedDisplays.cpp.
+
+#include "screens/ai_quant_lab/QuantModulePanel.h"
+#include "screens/ai_quant_lab/QuantModulePanel_AdvancedHelpers.h"
+#include "screens/ai_quant_lab/QuantModulePanel_Common.h"
+#include "screens/ai_quant_lab/QuantModulePanel_GsHelpers.h"
+#include "screens/ai_quant_lab/QuantModulePanel_ResultCharts.h"
+#include "screens/ai_quant_lab/QuantModulePanel_Styles.h"
+#include "ui/theme/Theme.h"
+
+#include <QAbstractItemView>
+#include <QColor>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QHash>
+#include <QHeaderView>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QLabel>
+#include <QList>
+#include <QPair>
+#include <QSet>
+#include <QString>
+#include <QStringList>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QVBoxLayout>
+#include <QWidget>
+
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <limits>
+
+namespace fincept::screens {
+
+using namespace fincept::services::quant;
+using namespace fincept::screens::quant_styles;
+using namespace fincept::screens::quant_common;
+using namespace fincept::screens::quant_gs_helpers;
+using namespace fincept::screens::quant_advanced_helpers;
+using namespace fincept::screens::quant_charts;
+
+void QuantModulePanel::display_factor_evaluation_result(const QString& command, const QJsonObject& payload) {
+    clear_results();
+    if (!check_success(payload, [this](const QString& s) { display_error(s); }))
+        return;
+
+    const QString accent = ui::colors::legible(module_.color);
+    QString header_text = command.toUpper();
+    header_text.replace('_', ' ');
+    results_layout_->addWidget(gs_section_header(header_text, accent));
+
+    // ── calculate_ic ─────────────────────────────────────────────────────────
+    if (command == "calculate_ic") {
+        const double ic_mean = payload.value("IC_mean").toDouble();
+        const double ic_std = payload.value("IC_std").toDouble();
+        const double icir = payload.value("ICIR").toDouble();
+        const double ic_pos = payload.value("IC_positive_rate").toDouble();
+        const double pval = payload.value("p_value").toDouble();
+        const bool sig = payload.value("is_significant").toBool();
+        // Flat prediction / return lists give one full-sample IC; the dispersion statistics need a
+        // rolling-IC series (>= 2 windows). Show a dash rather than the zeros the script fills in.
+        const bool rolling = payload.value("rolling_ic_available").toBool(true);
+        const QString dash = QString::fromUtf8("—");
+
+        QList<QWidget*> top = {
+            gs_make_card(rolling ? tr("IC MEAN") : tr("IC (FULL SAMPLE)"), QString::number(ic_mean, 'f', 4), this,
+                         gs_pos_neg_color(ic_mean)),
+            gs_make_card(tr("IC STD"), rolling ? QString::number(ic_std, 'f', 4) : dash, this),
+            gs_make_card(tr("ICIR"), rolling ? QString::number(icir, 'f', 3) : dash, this,
+                         !rolling        ? ui::colors::TEXT_PRIMARY()
+                         : icir >= 0.5 ? ui::colors::POSITIVE()
+                         : icir > 0    ? ui::colors::WARNING()
+                                       : ui::colors::NEGATIVE()),
+            gs_make_card(tr("POS RATE"), rolling ? QString::number(ic_pos * 100, 'f', 1) + "%" : dash, this,
+                         ic_pos > 0.55 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+        };
+        results_layout_->addWidget(gs_card_row(top, this));
+
+        QList<QWidget*> stats = {
+            gs_make_card(tr("IC MAX"), rolling ? QString::number(payload.value("IC_max").toDouble(), 'f', 4) : dash,
+                         this, ui::colors::POSITIVE()),
+            gs_make_card(tr("IC MIN"), rolling ? QString::number(payload.value("IC_min").toDouble(), 'f', 4) : dash,
+                         this, ui::colors::NEGATIVE()),
+            gs_make_card(tr("IC MEDIAN"),
+                         rolling ? QString::number(payload.value("IC_median").toDouble(), 'f', 4) : dash, this),
+            gs_make_card(tr("OBSERVATIONS"), QString::number(payload.value("observations").toInt()), this),
+        };
+        results_layout_->addWidget(gs_card_row(stats, this));
+
+        QList<QWidget*> moments = {
+            gs_make_card(tr("SKEWNESS"), rolling ? QString::number(payload.value("IC_skewness").toDouble(), 'f', 4) : dash,
+                         this),
+            gs_make_card(tr("KURTOSIS"), rolling ? QString::number(payload.value("IC_kurtosis").toDouble(), 'f', 4) : dash,
+                         this),
+            gs_make_card(tr("p-VALUE"), QString::number(pval, 'f', 4), this,
+                         pval < 0.05 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("SIGNIFICANT"), sig ? tr("YES") : tr("NO"), this,
+                         sig ? ui::colors::POSITIVE() : ui::colors::NEGATIVE()),
+        };
+        results_layout_->addWidget(gs_card_row(moments, this));
+
+        const QString ic_note = payload.value("note").toString();
+        if (!ic_note.isEmpty()) {
+            auto* note = gs_section_header(ic_note, accent);
+            note->setWordWrap(true);
+            results_layout_->addWidget(note);
+        }
+
+        // IC per date over the whole evaluation period (bars coloured by sign around the
+        // mean line), then the latest dates newest first.
+        const auto series = payload.value("ic_series").toArray();
+        if (!series.isEmpty()) {
+            QcChartSpec spec;
+            spec.title = tr("DAILY IC");
+            const XAxis x = qc_x_axis(series, {QStringLiteral("date")});
+            spec.x_time = x.time;
+            spec.xs = x.xs;
+            spec.fmt = qc_fmt_num(3);
+            QcLine l;
+            l.name = tr("IC");
+            l.ys = qc_column(series, QStringLiteral("ic"));
+            l.style = ui::TimeSeriesChart::Style::Baseline;
+            l.has_baseline = true;
+            l.baseline = 0.0;
+            spec.lines.append(l);
+            auto* chart = qc_series_chart(spec, this);
+            if (rolling)
+                chart->add_hline(ic_mean, tr("Mean %1").arg(ic_mean, 0, 'f', 4), ui::ChartColorRole::Accent);
+            results_layout_->addWidget(chart);
+
+            const QVector<int> latest = qc_latest_rows(series.size());
+            const int rows = latest.size();
+            results_layout_->addWidget(qc_caption(qc_latest_caption(rows, series.size())));
+            auto* table = new QTableWidget(rows, 2, this);
+            table->setHorizontalHeaderLabels({tr("Date"), tr("IC")});
+            table->verticalHeader()->setVisible(false);
+            table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+            table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+            table->setStyleSheet(table_ss());
+            table->setMaximumHeight(rows * row_px(22) + row_px(32));
+            for (int r = 0; r < rows; ++r) {
+                const auto o = series[latest.at(r)].toObject();
+                table->setItem(r, 0, new QTableWidgetItem(o.value("date").toString()));
+                const double ic = o.value("ic").toDouble();
+                auto* it = new QTableWidgetItem(QString::number(ic, 'f', 4));
+                it->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                it->setForeground(QColor(gs_pos_neg_color(ic)));
+                table->setItem(r, 1, it);
+                table->setRowHeight(r, row_px(22));
+            }
+            results_layout_->addWidget(table);
+        }
+        status_label_->setText(
+            tr("IC=%1 ICIR=%2 p=%3").arg(ic_mean, 0, 'f', 4).arg(icir, 0, 'f', 3).arg(pval, 0, 'f', 4));
+        return;
+    }
+
+    // ── calculate_risk_metrics ───────────────────────────────────────────────
+    if (command == "calculate_risk_metrics") {
+        const double vol = payload.value("volatility").toDouble();
+        const double mdd = payload.value("max_drawdown").toDouble();
+        const double beta = payload.value("beta").toDouble();
+        const double te = payload.value("tracking_error").toDouble();
+
+        QList<QWidget*> top = {
+            gs_make_card(tr("VOLATILITY"), fmt_pct_safe(QJsonValue(vol)), this),
+            gs_make_card(tr("MAX DRAWDOWN"), fmt_pct_safe(QJsonValue(mdd)), this,
+                         mdd <= -0.20 ? ui::colors::NEGATIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("BETA"), QString::number(beta, 'f', 3), this,
+                         beta > 1.2 ? ui::colors::WARNING() : ui::colors::TEXT_PRIMARY()),
+            gs_make_card(tr("TRACKING ERROR"), fmt_pct_safe(QJsonValue(te)), this),
+        };
+        results_layout_->addWidget(gs_card_row(top, this));
+
+        QList<QWidget*> tail = {
+            gs_make_card(tr("DOWNSIDE DEV"), fmt_pct_safe(payload.value("downside_deviation")), this,
+                         ui::colors::WARNING()),
+            gs_make_card(tr("VaR 95%"), fmt_pct_safe(payload.value("var_95")), this, ui::colors::WARNING()),
+            gs_make_card(tr("CVaR 95%"), fmt_pct_safe(payload.value("cvar_95")), this, ui::colors::NEGATIVE()),
+            gs_make_card(tr("DD DURATION"), tr("%1 days").arg(payload.value("max_drawdown_duration").toInt()), this),
+        };
+        results_layout_->addWidget(gs_card_row(tail, this));
+
+        QList<QWidget*> capture = {
+            gs_make_card(tr("UP CAPTURE"), QString::number(payload.value("up_capture").toDouble() * 100, 'f', 1) + "%",
+                         this,
+                         payload.value("up_capture").toDouble() > 1.0 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(
+                tr("DOWN CAPTURE"), QString::number(payload.value("down_capture").toDouble() * 100, 'f', 1) + "%", this,
+                payload.value("down_capture").toDouble() < 1.0 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("SKEWNESS"), QString::number(payload.value("skewness").toDouble(), 'f', 3), this,
+                         gs_pos_neg_color(payload.value("skewness").toDouble())),
+            gs_make_card(tr("KURTOSIS"), QString::number(payload.value("kurtosis").toDouble(), 'f', 3), this),
+        };
+        results_layout_->addWidget(gs_card_row(capture, this));
+        status_label_->setText(
+            tr("Vol=%1%  MaxDD=%2%  β=%3").arg(vol * 100, 0, 'f', 2).arg(mdd * 100, 0, 'f', 2).arg(beta, 0, 'f', 3));
+        return;
+    }
+
+    // ── generate_evaluation_report ───────────────────────────────────────────
+    if (command == "generate_evaluation_report") {
+        const auto rep = payload.value("report").toObject();
+        const QString rating = rep.value("rating").toString();
+        const double score = rep.value("overall_score").toDouble();
+        const auto ic = rep.value("ic_analysis").toObject();
+        const auto qa = rep.value("quantile_analysis").toObject();
+        const auto turn = rep.value("turnover_analysis").toObject();
+
+        QList<QWidget*> top = {
+            gs_make_card(tr("FACTOR"), rep.value("factor_name").toString(), this),
+            gs_make_card(tr("OVERALL SCORE"), QString::number(score, 'f', 1) + tr(" / 100"), this,
+                         score >= 70   ? ui::colors::POSITIVE()
+                         : score >= 40 ? ui::colors::WARNING()
+                                       : ui::colors::NEGATIVE()),
+            gs_make_card(tr("RATING"), rating.toUpper(), this, verdict_color_for(rating)),
+            gs_make_card(tr("PERIODS"), QString::number(rep.value("data_range").toObject().value("periods").toInt()),
+                         this),
+        };
+        results_layout_->addWidget(gs_card_row(top, this));
+
+        results_layout_->addWidget(gs_section_header(tr("IC ANALYSIS"), accent));
+        QList<QWidget*> ic_cards = {
+            gs_make_card(tr("IC MEAN"), QString::number(ic.value("IC_mean").toDouble(), 'f', 4), this,
+                         gs_pos_neg_color(ic.value("IC_mean").toDouble())),
+            gs_make_card(tr("ICIR"), QString::number(ic.value("ICIR").toDouble(), 'f', 3), this,
+                         ic.value("ICIR").toDouble() >= 0.5 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("POS RATE"), QString::number(ic.value("IC_positive_rate").toDouble() * 100, 'f', 1) + "%",
+                         this),
+            gs_make_card(tr("p-VALUE"), QString::number(ic.value("p_value").toDouble(), 'f', 4), this,
+                         ic.value("p_value").toDouble() < 0.05 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+        };
+        results_layout_->addWidget(gs_card_row(ic_cards, this));
+
+        results_layout_->addWidget(gs_section_header(tr("QUANTILE ANALYSIS"), accent));
+        if (!qa.value("success").toBool(true)) {
+            auto* note = gs_section_header(qa.value("error").toString(tr("Quantile analysis unavailable")),
+                                           ui::colors::WARNING());
+            note->setWordWrap(true);
+            results_layout_->addWidget(note);
+        } else {
+            QList<QWidget*> qa_cards = {
+                gs_make_card(tr("L/S SHARPE"), QString::number(qa.value("long_short_sharpe").toDouble(), 'f', 3), this,
+                             qa.value("long_short_sharpe").toDouble() >= 1.0 ? ui::colors::POSITIVE()
+                                                                             : ui::colors::WARNING()),
+                gs_make_card(tr("SPREAD"), fmt_pct_safe(qa.value("spread"), 4), this,
+                             gs_pos_neg_color(qa.value("spread").toDouble())),
+                gs_make_card(tr("MONOTONICITY"),
+                             QString::number(qa.value("monotonicity").toDouble() * 100, 'f', 1) + "%", this,
+                             qa.value("monotonicity").toDouble() >= 0.7 ? ui::colors::POSITIVE()
+                                                                        : ui::colors::WARNING()),
+                gs_make_card(tr("L/S MEAN RET"), fmt_pct_safe(qa.value("long_short_mean_return"), 4), this,
+                             gs_pos_neg_color(qa.value("long_short_mean_return").toDouble())),
+            };
+            results_layout_->addWidget(gs_card_row(qa_cards, this));
+        }
+
+        if (!turn.isEmpty()) {
+            results_layout_->addWidget(gs_section_header(tr("TURNOVER"), accent));
+            QList<QWidget*> tu_cards = {
+                gs_make_card(tr("MEAN"), fmt_pct_safe(turn.value("mean_turnover")), this),
+                gs_make_card(tr("MEDIAN"), fmt_pct_safe(turn.value("median_turnover")), this),
+                gs_make_card(tr("MAX"), fmt_pct_safe(turn.value("max_turnover")), this, ui::colors::WARNING()),
+                gs_make_card(tr("OBS"), QString::number(turn.value("observations").toInt()), this),
+            };
+            results_layout_->addWidget(gs_card_row(tu_cards, this));
+        }
+        status_label_->setText(
+            tr("%1: %2/100 (%3)").arg(rep.value("factor_name").toString()).arg(score, 0, 'f', 1).arg(rating));
+        return;
+    }
+
+    // ── combine_factors ──────────────────────────────────────────────────────
+    // {method, num_factors, observations, weights{name: w}, combined_factor[...],
+    //  factor_ic{name: ic}?, combined_ic?, in_sample?, note?}
+    if (command == "combine_factors") {
+        const QString method = payload.value("method").toString();
+        const QJsonObject weights = payload.value("weights").toObject();
+        const QJsonObject factor_ic = payload.value("factor_ic").toObject();
+        const QJsonValue combined_ic = payload.value("combined_ic");
+        const QJsonArray combined = payload.value("combined_factor").toArray();
+
+        QList<QWidget*> top = {
+            gs_make_card(tr("METHOD"), method.toUpper(), this),
+            gs_make_card(tr("FACTORS"), fmt_int_safe(payload.value("num_factors")), this),
+            gs_make_card(tr("OBSERVATIONS"), fmt_int_safe(payload.value("observations")), this),
+            gs_make_card(payload.value("in_sample").toBool() ? tr("COMPOSITE IC (IN-SAMPLE)") : tr("COMPOSITE IC"),
+                         fmt_num_safe(combined_ic, 4), this),
+        };
+        results_layout_->addWidget(gs_card_row(top, this));
+
+        if (!weights.isEmpty()) {
+            results_layout_->addWidget(gs_section_header(tr("WEIGHTS ON THE STANDARDISED FACTORS"), accent));
+            const bool has_ic = !factor_ic.isEmpty();
+            auto* table = new QTableWidget(weights.size(), has_ic ? 3 : 2, this);
+            table->setHorizontalHeaderLabels(has_ic ? QStringList{tr("Factor"), tr("Weight"), tr("IC")}
+                                                    : QStringList{tr("Factor"), tr("Weight")});
+            table->verticalHeader()->setVisible(false);
+            table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+            table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+            table->setStyleSheet(table_ss());
+            table->setMaximumHeight(qMin(static_cast<int>(weights.size()) * row_px(24) + row_px(32), row_px(320)));
+            int r = 0;
+            for (auto it = weights.begin(); it != weights.end(); ++it, ++r) {
+                table->setItem(r, 0, new QTableWidgetItem(it.key()));
+                const double wv = it.value().toDouble();
+                table->setItem(r, 1, num_item(QString::number(wv * 100.0, 'f', 2) + "%", wv));
+                if (has_ic) {
+                    const QJsonValue icv = factor_ic.value(it.key());
+                    if (icv.isDouble())
+                        table->setItem(r, 2, num_item(QString::number(icv.toDouble(), 'f', 4), icv.toDouble()));
+                    else
+                        table->setItem(r, 2, new QTableWidgetItem(QString::fromUtf8("—")));
+                }
+                table->setRowHeight(r, row_px(24));
+            }
+            finish_table(table);
+            results_layout_->addWidget(table);
+        }
+
+        if (combined.size() >= 2) {
+            QcChartSpec spec;
+            spec.title = tr("COMPOSITE FACTOR (Z-SCORE UNITS)");
+            spec.xs = qc_x_positions(combined.size()).xs;
+            spec.fmt = qc_fmt_num(3);
+            spec.x_label = [](double v) {
+                return QStringLiteral("#%1").arg(static_cast<qlonglong>(std::llround(v)));
+            };
+            QcLine l;
+            l.name = tr("Composite");
+            l.ys = qc_values(combined);
+            l.color = ui::ChartColorRole::Accent;
+            spec.lines.append(l);
+            results_layout_->addWidget(qc_series_chart(spec, this));
+        }
+
+        const QString note_text = payload.value("note").toString();
+        if (!note_text.isEmpty()) {
+            auto* note = gs_section_header(note_text, ui::colors::WARNING());
+            note->setWordWrap(true);
+            results_layout_->addWidget(note);
+        }
+        status_label_->setText(combined_ic.isDouble()
+                                   ? tr("%1: %2 factors, composite IC %3")
+                                         .arg(method)
+                                         .arg(weights.size())
+                                         .arg(combined_ic.toDouble(), 0, 'f', 4)
+                                   : tr("%1: %2 factors combined").arg(method).arg(weights.size()));
+        return;
+    }
+
+    display_result(payload);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 7. STRATEGY BUILDER
+// ═════════════════════════════════════════════════════════════════════════════
+void QuantModulePanel::display_strategy_builder_result(const QString& command, const QJsonObject& payload) {
+    clear_results();
+    if (!check_success(payload, [this](const QString& s) { display_error(s); }))
+        return;
+
+    const QString accent = ui::colors::legible(module_.color);
+    const QString stype = payload.value("strategy_type").toString();
+    QString header_text = (stype.isEmpty() ? command : stype).toUpper();
+    header_text.replace('_', ' ');
+    results_layout_->addWidget(gs_section_header(header_text, accent));
+
+    // portfolio_metrics — a flat dict of stats
+    if (command == "portfolio_metrics") {
+        const double sh = payload.value("sharpe_ratio").toDouble();
+        const double ann = payload.value("annual_return").toDouble();
+        const double mdd = payload.value("max_drawdown").toDouble();
+        const double cal = payload.value("calmar_ratio").toDouble();
+
+        QList<QWidget*> top = {
+            gs_make_card(tr("ANN. RETURN"), fmt_pct_safe(QJsonValue(ann)), this, gs_pos_neg_color(ann)),
+            gs_make_card(tr("VOLATILITY"), fmt_pct_safe(payload.value("volatility")), this),
+            gs_make_card(tr("SHARPE"), QString::number(sh, 'f', 3), this,
+                         sh >= 1.0 ? ui::colors::POSITIVE()
+                         : sh > 0  ? ui::colors::WARNING()
+                                   : ui::colors::NEGATIVE()),
+            gs_make_card(tr("MAX DD"), fmt_pct_safe(QJsonValue(mdd)), this,
+                         mdd <= -0.20 ? ui::colors::NEGATIVE() : ui::colors::WARNING()),
+        };
+        results_layout_->addWidget(gs_card_row(top, this));
+
+        QList<QWidget*> ratios = {
+            gs_make_card(tr("SORTINO"), QString::number(payload.value("sortino_ratio").toDouble(), 'f', 3), this,
+                         payload.value("sortino_ratio").toDouble() >= 1.0 ? ui::colors::POSITIVE()
+                                                                          : ui::colors::WARNING()),
+            gs_make_card(tr("CALMAR"), QString::number(cal, 'f', 3), this,
+                         cal >= 0.5 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("INFO RATIO"), QString::number(payload.value("information_ratio").toDouble(), 'f', 3), this,
+                         payload.value("information_ratio").toDouble() > 0.5 ? ui::colors::POSITIVE()
+                                                                             : ui::colors::WARNING()),
+            gs_make_card(tr("BETA"), QString::number(payload.value("beta").toDouble(), 'f', 3), this),
+        };
+        results_layout_->addWidget(gs_card_row(ratios, this));
+
+        QList<QWidget*> day = {
+            gs_make_card(tr("WIN RATE"), QString::number(payload.value("win_rate").toDouble() * 100, 'f', 1) + "%",
+                         this,
+                         payload.value("win_rate").toDouble() > 0.55 ? ui::colors::POSITIVE() : ui::colors::WARNING()),
+            gs_make_card(tr("BEST DAY"), fmt_pct_safe(payload.value("best_day"), 3), this, ui::colors::POSITIVE()),
+            gs_make_card(tr("WORST DAY"), fmt_pct_safe(payload.value("worst_day"), 3), this, ui::colors::NEGATIVE()),
+            gs_make_card(tr("ALPHA"), fmt_pct_safe(payload.value("alpha"), 3), this,
+                         gs_pos_neg_color(payload.value("alpha").toDouble())),
+        };
+        results_layout_->addWidget(gs_card_row(day, this));
+        status_label_->setText(tr("Annual %1%  Sharpe %2  MaxDD %3%")
+                                   .arg(ann * 100, 0, 'f', 2)
+                                   .arg(sh, 0, 'f', 3)
+                                   .arg(mdd * 100, 0, 'f', 2));
+        return;
+    }
+
+    // Strategy creation commands — common fields: strategy_id, strategy_type, config?, weights?, suitable_for[]
+    QList<QWidget*> top = {
+        gs_make_card(tr("STRATEGY ID"), payload.value("strategy_id").toString(), this),
+        gs_make_card(tr("TYPE"), stype, this),
+        gs_make_card(tr("STATUS"), tr("CREATED"), this, ui::colors::SUCCESS()),
+        gs_make_card(tr("DESCRIPTION"), tr("↓ see below"), this, ui::colors::INFO()),
+    };
+    results_layout_->addWidget(gs_card_row(top, this));
+
+    // Risk parity / mean variance: weights present
+    if (payload.contains("weights")) {
+        const auto weights = payload.value("weights").toObject();
+        if (payload.contains("expected_return")) {
+            QList<QWidget*> mv = {
+                gs_make_card(tr("EXP. RETURN"), fmt_pct_safe(payload.value("expected_return")), this,
+                             gs_pos_neg_color(payload.value("expected_return").toDouble())),
+                gs_make_card(tr("EXP. VOL"), fmt_pct_safe(payload.value("expected_volatility")), this),
+                gs_make_card(tr("SHARPE"), QString::number(payload.value("sharpe_ratio").toDouble(), 'f', 3), this,
+                             payload.value("sharpe_ratio").toDouble() >= 1.0 ? ui::colors::POSITIVE()
+                                                                             : ui::colors::WARNING()),
+                gs_make_card(tr("RISK-FREE"), fmt_pct_safe(payload.value("risk_free_rate")), this, ui::colors::INFO()),
+            };
+            results_layout_->addWidget(gs_card_row(mv, this));
+        } else if (payload.contains("target_risk")) {
+            QList<QWidget*> rp = {
+                gs_make_card(tr("TARGET RISK"), fmt_pct_safe(payload.value("target_risk")), this),
+                gs_make_card(tr("EXP. VOL"),
+                             payload.value("expected_volatility").isString()
+                                 ? payload.value("expected_volatility").toString()
+                                 : fmt_pct_safe(payload.value("expected_volatility")),
+                             this),
+                gs_make_card(tr("REBALANCE"), payload.value("rebalance_frequency").toString().toUpper(), this),
+                gs_make_card(tr("ASSETS"), QString::number(weights.size()), this),
+            };
+            results_layout_->addWidget(gs_card_row(rp, this));
+        }
+        results_layout_->addWidget(gs_section_header(tr("WEIGHTS"), accent));
+        // Scaled risk-parity weights need not sum to 100%: no allocation donut for those.
+        if (payload.contains("gross_exposure"))
+            results_layout_->addWidget(build_weights_table(weights, this));
+        else
+            results_layout_->addWidget(build_weights_view(weights, this));
+        // Risk parity scales the equal-risk weights to the target volatility, so they need not
+        // sum to 100%; show the gross exposure and the unscaled (fully invested) weights too.
+        if (payload.contains("gross_exposure")) {
+            auto* note = gs_section_header(tr("Scaled weights sum to %1% of capital to reach the target volatility "
+                                              "(100% = fully invested).")
+                                               .arg(payload.value("gross_exposure").toDouble() * 100.0, 0, 'f', 1),
+                                           accent);
+            note->setWordWrap(true);
+            results_layout_->addWidget(note);
+            const auto unscaled = payload.value("unscaled_weights").toObject();
+            if (!unscaled.isEmpty()) {
+                results_layout_->addWidget(gs_section_header(tr("UNSCALED WEIGHTS (FULLY INVESTED)"), accent));
+                results_layout_->addWidget(build_weights_view(unscaled, this));
+            }
+        }
+        // TopK-Dropout: every name ranked by its signal, and whether the book holds it.
+        const QJsonArray ranking = payload.value("ranking").toArray();
+        if (!ranking.isEmpty()) {
+            results_layout_->addWidget(
+                gs_section_header(tr("RANKING  |  %n NAME(S)", "", static_cast<int>(ranking.size())), accent));
+            auto* table = new QTableWidget(ranking.size(), 4, this);
+            table->setHorizontalHeaderLabels({tr("Rank"), tr("Asset"), tr("Signal"), tr("In book")});
+            table->verticalHeader()->setVisible(false);
+            table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+            table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+            table->setStyleSheet(table_ss());
+            table->setMaximumHeight(qMin(static_cast<int>(ranking.size()) * row_px(24) + row_px(32), 320));
+            for (int r = 0; r < ranking.size(); ++r) {
+                const QJsonObject o = ranking.at(r).toObject();
+                table->setItem(r, 0, num_item(QString::number(o.value("rank").toInt()), o.value("rank").toInt()));
+                table->setItem(r, 1, new QTableWidgetItem(o.value("asset").toString()));
+                table->setItem(r, 2, num_item(fmt_num_safe(o.value("signal"), 4), o.value("signal").toDouble()));
+                const bool held = o.value("held").toBool();
+                // A state with its word (never colour alone).
+                table->setItem(r, 3, new QTableWidgetItem(held ? tr("yes") : tr("no")));
+                if (held)
+                    table->item(r, 3)->setForeground(QColor(ui::colors::SUCCESS()));
+                table->setRowHeight(r, row_px(24));
+            }
+            finish_table(table);
+            results_layout_->addWidget(table);
+        }
+        if (payload.contains("expected_turnover"))
+            results_layout_->addWidget(gs_card_row(
+                {gs_make_card(tr("EXPECTED TURNOVER"), payload.value("expected_turnover").toString(), this)}, this));
+    } else if (payload.contains("config")) {
+        // TopK-Dropout / Enhanced Indexing / Weight Strategy: render config dict
+        const auto cfg = payload.value("config").toObject();
+        if (!cfg.isEmpty()) {
+            results_layout_->addWidget(gs_section_header(tr("CONFIG"), accent));
+            auto* table = new QTableWidget(cfg.size(), 2, this);
+            table->setHorizontalHeaderLabels({tr("Parameter"), tr("Value")});
+            table->verticalHeader()->setVisible(false);
+            table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+            table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+            table->setStyleSheet(table_ss());
+            table->setMaximumHeight(qMin(cfg.size() * row_px(24) + row_px(32), 240));
+            int r = 0;
+            for (auto it = cfg.begin(); it != cfg.end(); ++it, ++r) {
+                table->setItem(r, 0, new QTableWidgetItem(it.key().toUpper()));
+                auto* vi = new QTableWidgetItem(format_val(it.value()));
+                vi->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                table->setItem(r, 1, vi);
+                table->setRowHeight(r, row_px(24));
+            }
+            results_layout_->addWidget(table);
+        }
+
+        // Show extra Enhanced-Indexing fields
+        if (payload.contains("expected_tracking_error") || payload.contains("expected_alpha")) {
+            QList<QWidget*> ei = {
+                gs_make_card(tr("TRACKING ERROR"), payload.value("expected_tracking_error").toString(), this),
+                gs_make_card(tr("ALPHA TARGET"), payload.value("expected_alpha").toString(), this,
+                             ui::colors::POSITIVE()),
+                gs_make_card(tr("BENCHMARK"), payload.value("config").toObject().value("benchmark").toString(), this,
+                             ui::colors::INFO()),
+                gs_make_card(
+                    tr("ACTIVE SHARE"),
+                    QString::number(payload.value("config").toObject().value("active_share").toDouble() * 100, 'f', 1) +
+                        "%",
+                    this),
+            };
+            results_layout_->addWidget(gs_card_row(ei, this));
+        } else if (payload.contains("expected_turnover")) {
+            QList<QWidget*> tk = {
+                gs_make_card(tr("EXPECTED TURNOVER"), payload.value("expected_turnover").toString(), this,
+                             ui::colors::WARNING()),
+            };
+            results_layout_->addWidget(gs_card_row(tk, this));
+        }
+    }
+
+    // Description + suitable_for badges
+    const QString desc = payload.value("description").toString();
+    if (!desc.isEmpty()) {
+        auto* lbl = new QLabel(desc);
+        lbl->setWordWrap(true);
+        lbl->setStyleSheet(
+            QString("color:%1; font-size:" + fincept::ui::fonts::px(-3) + "px; padding:8px 10px; background:%2; border-left:3px solid %3;")
+                .arg(ui::colors::TEXT_PRIMARY(), ui::colors::BG_SURFACE(), accent));
+        results_layout_->addWidget(lbl);
+    }
+    const auto sf = payload.value("suitable_for").toArray();
+    if (!sf.isEmpty()) {
+        QStringList sf_list;
+        for (const auto& v : sf)
+            sf_list << "• " + v.toString();
+        auto* sf_lbl = new QLabel(tr("Suitable for:\n%1").arg(sf_list.join("\n")));
+        sf_lbl->setWordWrap(true);
+        sf_lbl->setStyleSheet(QString("color:%1; font-size:" + fincept::ui::fonts::px(-4) + "px; padding:6px 10px;").arg(ui::colors::TEXT_SECONDARY()));
+        results_layout_->addWidget(sf_lbl);
+    }
+
+    status_label_->setText(tr("%1 strategy created").arg(stype));
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 8. DATA PROCESSORS
+// ═════════════════════════════════════════════════════════════════════════════
+} // namespace fincept::screens

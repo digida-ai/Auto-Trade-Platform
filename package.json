@@ -1,0 +1,32 @@
+{
+  "name": "autotrading-ideal-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AutoTrading Ideal Platform - unified orchestrator for all bundled subplatforms",
+  "workspaces": [
+    "agentic-inbox-main",
+    "freellmapi-main",
+    "freellmapi-main/shared",
+    "freellmapi-main/server",
+    "freellmapi-main/client",
+    "freellmapi-main/cli",
+    "hyperframes-main",
+    "hyperframes-main/packages/*",
+    "LibreChat-main",
+    "LibreChat-main/api",
+    "LibreChat-main/client",
+    "LibreChat-main/packages/*",
+    "Open-Higgsfield-AI-main",
+    "agent-desktop-main/npm"
+  ],
+  "scripts": {
+    "start": "node scripts/start-platform.js",
+    "init": "node scripts/init-platform.js",
+    "agents": "node scripts/generate-agents.js",
+    "orchestrator": "python -m orchestrator",
+    "check": "python -m compileall -q orchestrator"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

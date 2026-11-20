@@ -1,0 +1,15 @@
+# Shared resolution constraints for the platform venv.
+#
+# The bundled Python components pin mutually incompatible MCP versions:
+#   Open-LLM-VTuber  mcp==1.26.0
+#   FinceptTerminal  mcp>=1.30.0,<2.0
+#   Scrapling        mcp>=2.0.0   (uses the renamed streamable_http_client API)
+#   swarms (AutoHedge) imports mcp.client.streamable_http.streamablehttp_client,
+#   which mcp 2.x removed.
+#
+# MCP is only used by Scrapling's optional MCP server. Pinning the exact
+# Open-LLM-VTuber version (1.26.0) also keeps AutoHedge/swarms importable;
+# Scrapling's MCP feature is the only casualty. Install Scrapling's MCP extras
+# in its own venv if needed. 1.26.0 and 1.30.0 cannot both be installed, and
+# FinceptTerminal's Python requirements are not part of the shared venv.
+mcp==1.26.0

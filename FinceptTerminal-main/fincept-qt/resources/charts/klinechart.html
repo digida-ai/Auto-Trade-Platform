@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+<title>KLineChart</title>
+<script src="vendor/klinecharts.min.js"></script>
+<style>
+  /* Theme variables. The values here are only the first-paint defaults; the
+     host (KLineChartWidget::apply_theme) replaces them with the terminal's
+     active theme tokens on load and on every theme change. */
+  :root {
+    --bg: #0a0c10;
+    --surface: #10131a;
+    --raised: #171b24;
+    --hover: #1f2430;
+    --border-dim: #272d3b;
+    --border-med: #394155;
+    --text-primary: #eef0f5;
+    --text-secondary: #aab1c2;
+    --text-tertiary: #868ea2;
+    --text-dim: #727a8e;
+    --accent: #f5a623;
+    --text-on-accent: #1a1003;
+    --up: #2fd07a;
+    --down: #ff5d5d;
+    --flat: #868ea2;
+    --on-direction: #131722;
+    --on-palette: #131722;
+    --palette: #f5ae39,#3fb1ea,#9c51cc,#ffb8df,#4680f1;
+    --font-family: Consolas, 'Courier New', monospace;
+    --font-px: 14;
+    --fs-xs: 9px;
+    --fs-sm: 10px;
+    --fs-md: 13px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: var(--font-family); }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #toolbar { display: flex; align-items: center; gap: 2px; padding: 3px 6px; background: var(--surface); border-bottom: 1px solid var(--border-dim); flex-shrink: 0; flex-wrap: wrap; }
+  #chart { flex: 1; min-height: 0; }
+  .tb-group { display: flex; align-items: center; gap: 1px; margin-right: 6px; }
+  .tb-sep { width: 1px; height: 18px; background: var(--border-med); margin: 0 4px; }
+  .tb-btn { background: transparent; border: 1px solid transparent; color: var(--text-secondary); font-family: var(--font-family); font-size: var(--fs-sm); padding: 2px 6px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
+  .tb-btn:hover { background: var(--hover); color: var(--text-primary); border-color: var(--border-med); }
+  .tb-btn.active { background: var(--raised); color: var(--accent); border-color: var(--accent); }
+  #activeInds { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+  .ind-chip { display: inline-flex; align-items: center; background: var(--raised); color: var(--accent); border: 1px solid var(--accent); border-radius: 2px; font-family: var(--font-family); font-size: var(--fs-sm); padding: 1px 2px 1px 7px; }
+  .ind-x { background: transparent; border: none; color: var(--accent); font-family: var(--font-family); font-size: var(--fs-md); line-height: 1; cursor: pointer; padding: 0 4px; }
+  .ind-x:hover { color: var(--text-primary); }
+  .tb-dropdown { position: relative; display: inline-block; }
+  .tb-dropdown-content { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border-med); min-width: 140px; z-index: 100; max-height: 300px; overflow-y: auto; }
+  .tb-dropdown:hover .tb-dropdown-content { display: block; }
+  .tb-dropdown-content .tb-btn { display: block; width: 100%; text-align: left; border: none; padding: 4px 10px; border-radius: 0; }
+  .tb-dropdown-content .tb-btn:hover { background: var(--hover); }
+  .tb-dropdown-content .section { color: var(--accent); font-size: var(--fs-xs); padding: 6px 10px 2px; font-weight: 700; letter-spacing: 0.5px; }
+  #debug { position: fixed; bottom: 2px; left: 4px; color: var(--text-dim); font-family: var(--font-family); font-size: var(--fs-xs); z-index: 999; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <!-- Chart Type -->
+    <div class="tb-group">
+      <div class="tb-dropdown">
+        <button class="tb-btn" id="chartTypeBtn">Candle ▾</button>
+        <div class="tb-dropdown-content">
+          <button class="tb-btn" onclick="setChartType('candle_solid')">Candle Solid</button>
+          <button class="tb-btn" onclick="setChartType('candle_stroke')">Candle Stroke</button>
+          <button class="tb-btn" onclick="setChartType('candle_up_stroke')">Candle Up Stroke</button>
+          <button class="tb-btn" onclick="setChartType('ohlc')">OHLC</button>
+          <button class="tb-btn" onclick="setChartType('area')">Area</button>
+        </div>
+      </div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <!-- Indicators -->
+    <div class="tb-group">
+      <div class="tb-dropdown">
+        <button class="tb-btn">Indicators ▾</button>
+        <div class="tb-dropdown-content">
+          <div class="section">OVERLAY (on chart)</div>
+          <button class="tb-btn" data-ind="MA" onclick="toggleIndicator('MA')">MA</button>
+          <button class="tb-btn" data-ind="EMA" onclick="toggleIndicator('EMA')">EMA</button>
+          <button class="tb-btn" data-ind="SMA" onclick="toggleIndicator('SMA')">SMA</button>
+          <button class="tb-btn" data-ind="BOLL" onclick="toggleIndicator('BOLL')">Bollinger</button>
+          <button class="tb-btn" data-ind="SAR" onclick="toggleIndicator('SAR')">Parabolic SAR</button>
+          <button class="tb-btn" data-ind="VWAP" onclick="toggleIndicator('VWAP')">VWAP</button>
+
+          <div class="section">SUB-PANEL</div>
+          <button class="tb-btn" data-ind="VOL" onclick="toggleIndicator('VOL')">Volume</button>
+          <button class="tb-btn" data-ind="MACD" onclick="toggleIndicator('MACD')">MACD</button>
+          <button class="tb-btn" data-ind="RSI" onclick="toggleIndicator('RSI')">RSI</button>
+          <button class="tb-btn" data-ind="KDJ" onclick="toggleIndicator('KDJ')">KDJ</button>
+          <button class="tb-btn" data-ind="WR" onclick="toggleIndicator('WR')">Williams %R</button>
+          <button class="tb-btn" data-ind="OBV" onclick="toggleIndicator('OBV')">OBV</button>
+          <button class="tb-btn" data-ind="DMI" onclick="toggleIndicator('DMI')">DMI</button>
+          <button class="tb-btn" data-ind="CR" onclick="toggleIndicator('CR')">CR</button>
+          <button class="tb-btn" data-ind="PSY" onclick="toggleIndicator('PSY')">PSY</button>
+          <button class="tb-btn" data-ind="DMA" onclick="toggleIndicator('DMA')">DMA</button>
+          <button class="tb-btn" data-ind="TRIX" onclick="toggleIndicator('TRIX')">TRIX</button>
+          <button class="tb-btn" data-ind="BRAR" onclick="toggleIndicator('BRAR')">BRAR</button>
+          <button class="tb-btn" data-ind="VR" onclick="toggleIndicator('VR')">VR</button>
+          <button class="tb-btn" data-ind="EMV" onclick="toggleIndicator('EMV')">EMV</button>
+          <button class="tb-btn" data-ind="AO" onclick="toggleIndicator('AO')">Awesome Osc</button>
+          <button class="tb-btn" data-ind="ROC" onclick="toggleIndicator('ROC')">ROC</button>
+          <button class="tb-btn" data-ind="PVT" onclick="toggleIndicator('PVT')">PVT</button>
+          <button class="tb-btn" data-ind="AVP" onclick="toggleIndicator('AVP')">AVP</button>
+        </div>
+      </div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <!-- Drawing Tools -->
+    <div class="tb-group">
+      <div class="tb-dropdown">
+        <button class="tb-btn">Drawing ▾</button>
+        <div class="tb-dropdown-content">
+          <div class="section">LINES</div>
+          <button class="tb-btn" onclick="addOverlay('horizontalStraightLine')">Horizontal Line</button>
+          <button class="tb-btn" onclick="addOverlay('verticalStraightLine')">Vertical Line</button>
+          <button class="tb-btn" onclick="addOverlay('straightLine')">Trend Line</button>
+          <button class="tb-btn" onclick="addOverlay('rayLine')">Ray</button>
+          <button class="tb-btn" onclick="addOverlay('segment')">Segment</button>
+          <button class="tb-btn" onclick="addOverlay('horizontalRayLine')">Horizontal Ray</button>
+          <button class="tb-btn" onclick="addOverlay('horizontalSegment')">Horizontal Segment</button>
+          <button class="tb-btn" onclick="addOverlay('priceChannelLine')">Price Channel</button>
+          <button class="tb-btn" onclick="addOverlay('parallelStraightLine')">Parallel Lines</button>
+
+          <div class="section">FIBONACCI</div>
+          <button class="tb-btn" onclick="addOverlay('fibonacciLine')">Fibonacci Retrace</button>
+
+          <div class="section">SHAPES</div>
+          <button class="tb-btn" onclick="addOverlay('rect')">Rectangle</button>
+          <button class="tb-btn" onclick="addOverlay('circle')">Circle</button>
+          <button class="tb-btn" onclick="addOverlay('triangle')">Triangle</button>
+
+          <div class="section">ANNOTATIONS</div>
+          <button class="tb-btn" onclick="addOverlay('simpleAnnotation')">Annotation</button>
+          <button class="tb-btn" onclick="addOverlay('simpleTag')">Tag</button>
+        </div>
+      </div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <!-- Quick Actions -->
+    <div class="tb-group">
+      <button class="tb-btn" data-ind="MA" onclick="toggleIndicator('MA')" title="Moving Average (on chart)">MA</button>
+      <button class="tb-btn" data-ind="VOL" onclick="toggleIndicator('VOL')" title="Volume">VOL</button>
+      <button class="tb-btn" data-ind="MACD" onclick="toggleIndicator('MACD')" title="MACD">MACD</button>
+      <button class="tb-btn" data-ind="RSI" onclick="toggleIndicator('RSI')" title="RSI">RSI</button>
+      <button class="tb-btn" data-ind="BOLL" onclick="toggleIndicator('BOLL')" title="Bollinger Bands (on chart)">BOLL</button>
+    </div>
+    <div class="tb-sep"></div>
+
+    <!-- Active indicators (removable chips) -->
+    <div class="tb-group" id="activeInds"></div>
+    <div class="tb-sep"></div>
+
+    <!-- Scale + navigation -->
+    <div class="tb-group">
+      <div class="tb-dropdown">
+        <button class="tb-btn" title="Y-axis scale">Scale ▾</button>
+        <div class="tb-dropdown-content">
+          <button class="tb-btn" onclick="setScale('normal')">Normal</button>
+          <button class="tb-btn" onclick="setScale('percentage')">Percentage</button>
+          <button class="tb-btn" onclick="setScale('log')">Logarithmic</button>
+        </div>
+      </div>
+      <button class="tb-btn" onclick="chart.scrollToRealTime(300)" title="Scroll to latest">Latest</button>
+    </div>
+    <div class="tb-sep"></div>
+
+    <!-- Utilities -->
+    <div class="tb-group">
+      <button class="tb-btn" onclick="removeAllOverlays()" title="Clear drawings">Clear Draw</button>
+      <button class="tb-btn" onclick="removeAllIndicators()" title="Clear indicators">Clear Ind</button>
+      <button class="tb-btn" onclick="chart.zoomAtCoordinate(0.8)" title="Zoom In">+</button>
+      <button class="tb-btn" onclick="chart.zoomAtCoordinate(1.2)" title="Zoom Out">−</button>
+    </div>
+  </div>
+
+  <div id="chart"></div>
+</div>
+<div id="debug"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  var dbg = document.getElementById('debug');
+  function log(msg) { dbg.textContent = msg; }
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  // Every colour, font and text size the chart draws with comes from one theme
+  // object. Its first-paint values are read back from the :root CSS variables;
+  // the host replaces them through window.applyTheme() with the terminal's
+  // active theme tokens (including the user's up/down direction colours).
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function themeFromCss() {
+    return {
+      bg: cssVar('--bg'), surface: cssVar('--surface'), raised: cssVar('--raised'), hover: cssVar('--hover'),
+      borderDim: cssVar('--border-dim'), borderMed: cssVar('--border-med'),
+      textPrimary: cssVar('--text-primary'), textSecondary: cssVar('--text-secondary'),
+      textTertiary: cssVar('--text-tertiary'), textDim: cssVar('--text-dim'),
+      accent: cssVar('--accent'), textOnAccent: cssVar('--text-on-accent'),
+      up: cssVar('--up'), down: cssVar('--down'), flat: cssVar('--flat'),
+      onDirection: cssVar('--on-direction'), onPalette: cssVar('--on-palette'),
+      palette: cssVar('--palette').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      fontFamily: cssVar('--font-family'), fontPx: parseInt(cssVar('--font-px'), 10) || 14
+    };
+  }
+
+  // '#rrggbb' at alpha `a` as rgba(); anything else is returned unchanged.
+  function withAlpha(hex, a) {
+    var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+    if (!m) return hex;
+    return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')';
+  }
+
+  function textSizes(t) {
+    var base = t.fontPx || 14;
+    return { xs: Math.max(8, base - 5), sm: Math.max(9, base - 4), md: Math.max(10, base - 3) };
+  }
+
+  function buildStyles(t) {
+    var fs = textSizes(t), fam = t.fontFamily;
+    var palette = (t.palette && t.palette.length) ? t.palette : [t.accent];
+    var lines = [];
+    for (var i = 0; i < 5; i++) {
+      // Full objects: klinecharts merges arrays element by element.
+      lines.push({ style: 'solid', smooth: false, size: 1, dashedValue: [2, 2], color: palette[i % palette.length] });
+    }
+    var axisText = { show: true, color: t.textSecondary, size: fs.sm, family: fam, weight: 'normal' };
+    var crossText = { show: true, color: t.textOnAccent, size: fs.sm, family: fam, weight: 'normal',
+                      backgroundColor: t.accent, borderColor: t.accent,
+                      paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2 };
+    var accentFill = withAlpha(t.accent, 0.10);
+    var accentRing = withAlpha(t.accent, 0.35);
+    return {
+      grid: {
+        show: true,
+        horizontal: { show: true, size: 1, color: t.borderDim, style: 'dashed', dashedValue: [2, 2] },
+        vertical:   { show: true, size: 1, color: t.borderDim, style: 'dashed', dashedValue: [2, 2] }
+      },
+      candle: {
+        bar: {
+          upColor: t.up, downColor: t.down, noChangeColor: t.flat,
+          upBorderColor: t.up, downBorderColor: t.down, noChangeBorderColor: t.flat,
+          upWickColor: t.up, downWickColor: t.down, noChangeWickColor: t.flat
+        },
+        area: {
+          lineSize: 2, lineColor: t.accent,
+          backgroundColor: [{ offset: 0, color: withAlpha(t.accent, 0.02) }, { offset: 1, color: withAlpha(t.accent, 0.22) }]
+        },
+        priceMark: {
+          show: true,
+          high: { show: true, color: t.textSecondary, textSize: fs.sm, textFamily: fam },
+          low:  { show: true, color: t.textSecondary, textSize: fs.sm, textFamily: fam },
+          last: {
+            show: true, upColor: t.up, downColor: t.down, noChangeColor: t.flat,
+            line: { show: true, style: 'dashed', size: 1 },
+            text: { show: true, size: fs.sm, family: fam, color: t.onDirection,
+                    paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2 }
+          }
+        },
+        tooltip: {
+          showRule: 'always', showType: 'standard',
+          text: { size: fs.md, color: t.textPrimary, family: fam, weight: 'normal' }
+        }
+      },
+      indicator: {
+        ohlc: { upColor: t.up, downColor: t.down, noChangeColor: t.flat },
+        bars: [{ style: 'fill', borderStyle: 'solid', borderSize: 1, borderDashedValue: [2, 2],
+                 upColor: withAlpha(t.up, 0.7), downColor: withAlpha(t.down, 0.7), noChangeColor: t.flat }],
+        circles: [{ style: 'fill', borderStyle: 'solid', borderSize: 1, borderDashedValue: [2, 2],
+                    upColor: withAlpha(t.up, 0.7), downColor: withAlpha(t.down, 0.7), noChangeColor: t.flat }],
+        lines: lines,
+        lastValueMark: { show: true, text: { show: true, color: t.onPalette, size: fs.sm, family: fam } },
+        tooltip: { showRule: 'always', text: { size: fs.md, color: t.textPrimary, family: fam, weight: 'normal' } }
+      },
+      xAxis: {
+        show: true,
+        axisLine: { show: true, color: t.borderDim, size: 1 },
+        tickLine: { show: true, color: t.borderDim, size: 1 },
+        tickText: axisText
+      },
+      yAxis: {
+        show: true, position: 'right',
+        axisLine: { show: true, color: t.borderDim, size: 1 },
+        tickLine: { show: true, color: t.borderDim, size: 1 },
+        tickText: axisText
+      },
+      separator: { size: 2, color: t.borderDim, fill: true, activeBackgroundColor: withAlpha(t.accent, 0.15) },
+      crosshair: {
+        show: true,
+        horizontal: { show: true, line: { show: true, style: 'dashed', size: 1, color: t.accent }, text: crossText },
+        vertical:   { show: true, line: { show: true, style: 'dashed', size: 1, color: t.accent }, text: crossText }
+      },
+      overlay: {
+        point: { color: t.accent, borderColor: accentRing, activeColor: t.accent, activeBorderColor: accentRing },
+        line: { color: t.accent, size: 1 },
+        rect: { color: accentFill, borderColor: t.accent, borderSize: 1 },
+        polygon: { color: accentFill, borderColor: t.accent, borderSize: 1 },
+        circle: { color: accentFill, borderColor: t.accent, borderSize: 1 },
+        arc: { color: t.accent, size: 1 },
+        text: { color: t.textPrimary, size: fs.md, family: fam },
+        rectText: { color: t.textOnAccent, size: fs.sm, family: fam, backgroundColor: t.accent, borderColor: t.accent }
+      }
+    };
+  }
+
+  function applyCssVars(t) {
+    var fs = textSizes(t), root = document.documentElement.style;
+    var map = {
+      '--bg': t.bg, '--surface': t.surface, '--raised': t.raised, '--hover': t.hover,
+      '--border-dim': t.borderDim, '--border-med': t.borderMed,
+      '--text-primary': t.textPrimary, '--text-secondary': t.textSecondary,
+      '--text-tertiary': t.textTertiary, '--text-dim': t.textDim,
+      '--accent': t.accent, '--text-on-accent': t.textOnAccent,
+      '--up': t.up, '--down': t.down, '--flat': t.flat,
+      '--on-direction': t.onDirection, '--on-palette': t.onPalette,
+      '--font-family': t.fontFamily
+    };
+    Object.keys(map).forEach(function(k) { if (map[k]) root.setProperty(k, map[k]); });
+    if (t.palette && t.palette.length) root.setProperty('--palette', t.palette.join(','));
+    root.setProperty('--font-px', String(t.fontPx || 14));
+    root.setProperty('--fs-xs', fs.xs + 'px');
+    root.setProperty('--fs-sm', fs.sm + 'px');
+    root.setProperty('--fs-md', Math.max(11, (t.fontPx || 14) - 1) + 'px');
+  }
+
+  var chart;
+  try {
+    chart = klinecharts.init('chart', { styles: buildStyles(themeFromCss()) });
+    chart.setStyles({ candle: { type: 'candle_solid' } });
+    window.chart = chart;
+    // The time zone and price precision are set by the host (system time zone
+    // and the instrument's tick size); klinecharts' own defaults apply until then.
+    log('ready');
+  } catch (e) {
+    log('INIT ERROR: ' + e.message);
+    return;
+  }
+
+  // Host API: the active theme (see KLineChartWidget::apply_theme for the keys).
+  window.applyTheme = function(t) {
+    try {
+      var merged = themeFromCss();
+      Object.keys(t || {}).forEach(function(k) { if (t[k] !== undefined && t[k] !== null && t[k] !== '') merged[k] = t[k]; });
+      applyCssVars(merged);
+      chart.setStyles(buildStyles(merged));
+    } catch (e) { log('theme err: ' + e.message); }
+  };
+
+  // Host API: price / volume decimal places.
+  window.setPrecision = function(price, volume) {
+    try { chart.setPriceVolumePrecision(price, volume); } catch (e) { log('precision err: ' + e.message); }
+  };
+
+  // VWAP — volume-weighted average price, intraday (resets each session/day).
+  // A staple for execution desks/PMS; KLineChart has no built-in VWAP, so we
+  // register a custom price-series overlay.
+  try {
+    klinecharts.registerIndicator({
+      name: 'VWAP', shortName: 'VWAP', series: 'price', precision: 2,
+      figures: [{ key: 'vwap', title: 'VWAP: ', type: 'line' }],
+      calc: function(dataList) {
+        var out = [], cumPV = 0, cumV = 0, curDay = null;
+        for (var i = 0; i < dataList.length; i++) {
+          var k = dataList[i];
+          var dt = new Date(k.timestamp);
+          var day = dt.getUTCFullYear() + '-' + dt.getUTCMonth() + '-' + dt.getUTCDate();
+          if (day !== curDay) { cumPV = 0; cumV = 0; curDay = day; }
+          var v = k.volume || 0;
+          cumPV += ((k.high + k.low + k.close) / 3) * v;
+          cumV += v;
+          out.push({ vwap: cumV > 0 ? cumPV / cumV : k.close });
+        }
+        return out;
+      }
+    });
+  } catch (e) { log('vwap reg err: ' + e.message); }
+
+  window.addEventListener('resize', function() { chart.resize(); });
+
+  // Allow C++ to override the time axis timezone per market (e.g. US symbols).
+  window.setTimezone = function(tz) { try { chart.setTimezone(tz); } catch (e) {} };
+
+  // Y-axis scale: 'normal' | 'percentage' | 'log'.
+  window.setScale = function(type) {
+    try { chart.setStyles({ yAxis: { type: type } }); } catch (e) { log('scale err: ' + e.message); }
+  };
+
+  // Price under a vertical viewport coordinate (used by chart right-click
+  // trading). `clientY` is relative to the web view's top-left; we subtract the
+  // chart container's offset (toolbar height) before asking KLineChart to map
+  // the pixel to a y-axis value on the candle pane.
+  window.priceAtY = function(clientY) {
+    try {
+      var el = document.getElementById('chart');
+      var rect = el.getBoundingClientRect();
+      var y = clientY - rect.top;
+      var r = chart.convertFromPixel({ x: 0, y: y }, { paneId: 'candle_pane' });
+      var v = Array.isArray(r) ? (r[0] && r[0].value) : (r && r.value);
+      return (typeof v === 'number' && isFinite(v)) ? v : null;
+    } catch (e) { return null; }
+  };
+
+  // Edit an active indicator's calc params (e.g. MA periods "5,10,20,60").
+  window.editIndicatorParams = function(name) {
+    var paneId = activeIndicators[name];
+    if (paneId == null) return;
+    var cur = '';
+    try {
+      if (typeof chart.getIndicators === 'function') {
+        var inds = chart.getIndicators({ name: name, paneId: paneId });
+        if (inds && inds.length && inds[0].calcParams) cur = inds[0].calcParams.join(',');
+      }
+    } catch (e) {}
+    var input = window.prompt('Parameters for ' + name + ' (comma-separated):', cur);
+    if (input == null) return;
+    var params = input.split(',').map(function(s) { return parseFloat(s.trim()); })
+                      .filter(function(n) { return !isNaN(n); });
+    try { chart.overrideIndicator({ name: name, paneId: paneId, calcParams: params }); }
+    catch (e) { log('param err: ' + e.message); }
+  };
+
+  // Indicators that draw ON the main candle pane (price-series overlays) rather
+  // than in a separate sub-pane at the bottom.
+  var OVERLAY_INDICATORS = { MA: 1, EMA: 1, SMA: 1, BOLL: 1, SAR: 1, BBI: 1, VWAP: 1 };
+
+  // name -> paneId (the string returned by createIndicator). Needed because
+  // v9.8 removeIndicator is positional: removeIndicator(paneId, name).
+  var activeIndicators = {};
+
+  // Refresh toolbar active-state + the removable chip row.
+  function refreshIndicatorUi() {
+    var btns = document.querySelectorAll('[data-ind]');
+    for (var i = 0; i < btns.length; i++) {
+      var n = btns[i].getAttribute('data-ind');
+      if (activeIndicators[n] != null) btns[i].classList.add('active');
+      else btns[i].classList.remove('active');
+    }
+    var box = document.getElementById('activeInds');
+    if (!box) return;
+    box.innerHTML = '';
+    Object.keys(activeIndicators).forEach(function(name) {
+      var chip = document.createElement('span');
+      chip.className = 'ind-chip';
+      chip.appendChild(document.createTextNode(name));
+      var ed = document.createElement('button');
+      ed.className = 'ind-x';
+      ed.textContent = '✎';
+      ed.title = 'Edit ' + name + ' parameters';
+      ed.onclick = function() { editIndicatorParams(name); };
+      chip.appendChild(ed);
+      var x = document.createElement('button');
+      x.className = 'ind-x';
+      x.textContent = '×';
+      x.title = 'Remove ' + name;
+      x.onclick = function() { removeOneIndicator(name); };
+      chip.appendChild(x);
+      box.appendChild(chip);
+    });
+  }
+
+  function createIndicatorFor(name) {
+    // v9.8 signature: createIndicator(value, isStack, paneOptions) -> paneId.
+    var paneId;
+    if (OVERLAY_INDICATORS[name]) {
+      // Draw on the main candle pane (overlay), stacking over the candles.
+      paneId = chart.createIndicator(name, true, { id: 'candle_pane' });
+    } else {
+      // New bounded-height sub-pane so stacking several doesn't squeeze candles.
+      paneId = chart.createIndicator(name, false, { height: 90, minHeight: 40 });
+    }
+    activeIndicators[name] = paneId || (OVERLAY_INDICATORS[name] ? 'candle_pane' : name);
+  }
+
+  function removeOneIndicator(name) {
+    if (activeIndicators[name] == null) return;
+    chart.removeIndicator(activeIndicators[name], name); // (paneId, name)
+    delete activeIndicators[name];
+    refreshIndicatorUi();
+  }
+  window.removeOneIndicator = removeOneIndicator;
+
+  window.toggleIndicator = function(name) {
+    if (activeIndicators[name] != null) removeOneIndicator(name);
+    else { createIndicatorFor(name); refreshIndicatorUi(); }
+  };
+
+  window.addOverlay = function(name) {
+    chart.createOverlay(name);
+  };
+
+  window.removeAllOverlays = function() {
+    chart.removeOverlay();
+  };
+
+  window.removeAllIndicators = function() {
+    Object.keys(activeIndicators).forEach(function(name) {
+      chart.removeIndicator(activeIndicators[name], name);
+    });
+    activeIndicators = {};
+    refreshIndicatorUi(); // truly clears everything (including volume)
+  };
+
+  // Default: one volume sub-pane.
+  (function() {
+    var p = chart.createIndicator('VOL', false, { height: 90, minHeight: 40 });
+    activeIndicators['VOL'] = p || 'VOL';
+    refreshIndicatorUi();
+  })();
+
+  window.setChartType = function(type) {
+    chart.setStyles({ candle: { type: type } });
+    var labels = {
+      'candle_solid': 'Candle', 'candle_stroke': 'Stroke', 'candle_up_stroke': 'Up Stroke',
+      'ohlc': 'OHLC', 'area': 'Area'
+    };
+    document.getElementById('chartTypeBtn').textContent = (labels[type] || type) + ' ▾';
+  };
+
+  // --- API exposed to C++ via runJavaScript() ---
+
+  window.setCandles = function(data) {
+    try {
+      if (!Array.isArray(data) || data.length === 0) {
+        log('no data');
+        return;
+      }
+      chart.applyNewData(data);
+      // Narrower bars → more candles visible at once (range 1-50, default ~8).
+      try { chart.setBarSpace(6); } catch (e) {}
+      log(data.length + ' bars loaded');
+    } catch (e) {
+      log('ERROR: ' + e.message);
+    }
+  };
+
+  window.updateCandle = function(candle) {
+    try { chart.updateData(candle); } catch (e) { log('update err: ' + e.message); }
+  };
+
+  // Position entry line — a locked, dashed horizontal line at the position's
+  // average entry price. Set/cleared by C++ when an open position exists for the
+  // displayed symbol. The floating P&L card (a native Qt widget) sits on top.
+  window.__posOverlayId = null;
+  window.setPositionLine = function(price, label, color) {
+    try {
+      if (window.__posOverlayId) { chart.removeOverlay(window.__posOverlayId); window.__posOverlayId = null; }
+      window.__posOverlayId = chart.createOverlay({
+        name: 'horizontalStraightLine',
+        lock: true,
+        points: [{ value: price }],
+        styles: { line: { color: color, style: 'dashed', size: 1 } }
+      });
+    } catch (e) { try { log('posline err: ' + e.message); } catch (e2) {} }
+  };
+  window.clearPositionLine = function() {
+    try {
+      if (window.__posOverlayId) { chart.removeOverlay(window.__posOverlayId); window.__posOverlayId = null; }
+    } catch (e) {}
+  };
+
+  window.addIndicator = function(name) {
+    try { if (activeIndicators[name] == null) { createIndicatorFor(name); refreshIndicatorUi(); } }
+    catch (e) { log('ind err: ' + e.message); }
+  };
+
+  window.removeIndicator = function(name) {
+    try { removeOneIndicator(name); } catch (e) {}
+  };
+
+  window.clearChart = function() {
+    chart.clearData();
+  };
+
+  window.setTheme = function(styles) {
+    chart.setStyles(styles);
+  };
+
+  window._chartReady = true;
+})();
+</script>
+</body>
+</html>

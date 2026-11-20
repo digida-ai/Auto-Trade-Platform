@@ -1,0 +1,189 @@
+{
+  "platform": "AutoTrading Ideal Platform",
+  "root": ".",
+  "standalone": true,
+  "runtime_dependency": "none (independent of OpenMausBot)",
+  "admin_agent": "agents/admin-agent.md",
+  "eagents_dir": "agents/eagents",
+  "model": {
+    "type": "automaton",
+    "port": "musashaban-port",
+    "constitution": "musashaban-port/constitution.md",
+    "soul": "musashaban-port/soul.md",
+    "access_methods": "musashaban-port/access-methods.md",
+    "paywall_funding": "musashaban-port/paywall-funding.md",
+    "automaton_model": "musashaban-port/automaton-model.md",
+    "manifest": "musashaban-port/port-manifest.json",
+    "states": [
+      "idle",
+      "waking",
+      "running",
+      "reporting",
+      "blocked",
+      "completed",
+      "failed",
+      "sleeping"
+    ],
+    "admin_overlays": [
+      "planning",
+      "erecting_paywall",
+      "settling",
+      "funding"
+    ],
+    "reporting": {
+      "eagent_to": "admin",
+      "admin_to": "operator_audit",
+      "mandatory": true
+    },
+    "zero_funding": {
+      "enabled": true,
+      "default_posture": "fail_closed",
+      "principle": "no capital assumed; earn or simulate before spend; prefer paper/demo/testnet/backtest/simulation/free tiers"
+    },
+    "admin_authority": {
+      "erect_paywalls": true,
+      "settle": true,
+      "fund": true,
+      "notes": "Admin only; from realized/authorized resources; fail closed when conditions unmet; eagents report signals, do not act unilaterally"
+    }
+  },
+  "subplatforms": [
+    {
+      "name": "agent-desktop",
+      "eagent": "agents/eagents/agent-desktop.md",
+      "component": "agent-desktop-main",
+      "description": "Desktop automation and computer use via OS accessibility tree",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "agentic-inbox",
+      "eagent": "agents/eagents/agentic-inbox.md",
+      "component": "agentic-inbox-main",
+      "description": "Self-hosted email client with an AI agent",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "AutoHedge",
+      "eagent": "agents/eagents/AutoHedge.md",
+      "component": "AutoHedge-main",
+      "description": "Hedge trading",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "claude-ads",
+      "eagent": "agents/eagents/claude-ads.md",
+      "component": "claude-ads-main",
+      "description": "Ads tooling",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "FinceptTerminal",
+      "eagent": "agents/eagents/FinceptTerminal.md",
+      "component": "FinceptTerminal-main",
+      "description": "Enterprise terminal: real-time data, multi-agent AI research, live broker",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "freellmapi",
+      "eagent": "agents/eagents/freellmapi.md",
+      "component": "freellmapi-main",
+      "description": "Unified free LLM provider endpoint",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "grok-jev-router",
+      "eagent": "agents/eagents/grok-jev-router.md",
+      "component": "grok-jev-router-main",
+      "description": "Decision routing with human control for irreversible actions",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "hyperframes",
+      "eagent": "agents/eagents/hyperframes.md",
+      "component": "hyperframes-main",
+      "description": "Video generation",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "LibreChat",
+      "eagent": "agents/eagents/LibreChat.md",
+      "component": "LibreChat-main",
+      "description": "Open-source chat platform",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "Open-Higgsfield-AI",
+      "eagent": "agents/eagents/Open-Higgsfield-AI.md",
+      "component": "Open-Higgsfield-AI-main",
+      "description": "AI image and video generation",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "Open-LLM-VTuber",
+      "eagent": "agents/eagents/Open-LLM-VTuber.md",
+      "component": "Open-LLM-VTuber-main",
+      "description": "Desktop voice/avatar app",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "Pix-Payment-System",
+      "eagent": "agents/eagents/Pix-Payment-System.md",
+      "component": "Pix-Payment-System-main",
+      "description": "Payment system adapted for African use cases (mobile money, bank transfers, multi-currency, phone-first) plus PIX (Java, Python, Rust variants)",
+      "automaton": true,
+      "reports_to": "admin",
+      "economic_role": "settlement_funding_rail"
+    },
+    {
+      "name": "Scrapling",
+      "eagent": "agents/eagents/Scrapling.md",
+      "component": "Scrapling-main",
+      "description": "Web scraping",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "spider-ai--trading-bot",
+      "eagent": "agents/eagents/spider-ai--trading-bot.md",
+      "component": "spider-ai--trading-bot-main",
+      "description": "Copy trading, latency arbitrage, 5-min sniping, edge arbitrage",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "vibetrading",
+      "eagent": "agents/eagents/vibetrading.md",
+      "component": "vibetrading-main",
+      "description": "Trading (Python package)",
+      "automaton": true,
+      "reports_to": "admin"
+    },
+    {
+      "name": "sentry",
+      "eagent": "agents/eagents/sentry.md",
+      "component": "musashaban-port/deployment",
+      "description": "Deployment, hosting and security sentry department agent (deploy/hosting/security watch, reports to admin)",
+      "automaton": true,
+      "reports_to": "admin"
+    }
+  ],
+  "agent_model": {
+    "schema": "eagent/v1",
+    "constitution": "musashaban-port/constitution.md",
+    "constitution_sha256": "ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06",
+    "specs_dir": "agents/specs",
+    "soul_format": "soul/v1",
+    "generated_by": "scripts/generate-agents.js"
+  }
+}

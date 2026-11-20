@@ -1,0 +1,518 @@
+{
+  "agents": {
+    "freellmapi": {
+      "agent": "freellmapi",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:45.842261+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "freellmapi",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 5,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "670b7c3b0a34",
+        "timestamp": "2026-11-20T07:31:45.828477+00:00"
+      }
+    },
+    "FinceptTerminal": {
+      "agent": "FinceptTerminal",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:44.664021+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "FinceptTerminal",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 4,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "28a1480c3943",
+        "timestamp": "2026-11-20T07:31:44.641140+00:00"
+      }
+    },
+    "spider-ai--trading-bot": {
+      "agent": "spider-ai--trading-bot",
+      "state": "idle",
+      "updated_at": "2026-11-20T12:30:54.239289+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "spider-ai--trading-bot",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 1,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "df1716399c46",
+        "timestamp": "2026-11-20T07:31:38.951023+00:00"
+      },
+      "last_spend_authorization": "sa-562ef49e3a0d"
+    },
+    "vibetrading": {
+      "agent": "vibetrading",
+      "state": "idle",
+      "updated_at": "2026-11-20T14:40:20.182479+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "vibetrading",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 2,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "90112eaf9487",
+        "timestamp": "2026-11-20T07:31:40.921998+00:00"
+      },
+      "last_spend_authorization": "sa-08b11f9d273a"
+    },
+    "AutoHedge": {
+      "agent": "AutoHedge",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:42.806576+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "AutoHedge",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 3,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "b1f17dae85d0",
+        "timestamp": "2026-11-20T07:31:42.784350+00:00"
+      }
+    },
+    "Scrapling": {
+      "agent": "Scrapling",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:46.884966+00:00",
+      "run_id": "7add4fba595f",
+      "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital alloc",
+      "last_report": {
+        "agent": "Scrapling",
+        "reports_to": "admin",
+        "run_id": "7add4fba595f",
+        "step": 6,
+        "state": {
+          "from": "completed",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Earn from spread capture and arbitrage (zero-funding, paper/demo/testnet only). Strategy: Scan for price discrepancies across venues using free data feeds; Execute hedge trades only in paper/demo/testnet/backtest/simulation modes; Report profitable setups to admin for capital allocation decision; Never trade live capital without verified funds and operator authorization. KPI: paper_profit_captured, setups_identified, win_rate. Constraints: zero-funding, fail-closed, no live cap",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "35b308654371",
+        "timestamp": "2026-11-20T07:31:46.843194+00:00"
+      }
+    },
+    "agent-desktop": {
+      "agent": "agent-desktop",
+      "state": "idle",
+      "updated_at": "2026-11-20T14:40:19.713222+00:00",
+      "run_id": "t-constitution",
+      "task": "task",
+      "last_report": {
+        "agent": "agent-desktop",
+        "reports_to": "admin",
+        "run_id": "t-constitution",
+        "step": 0,
+        "state": {
+          "from": "blocked",
+          "to": "idle"
+        },
+        "task": "task",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "eagent idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "35b9356061c8",
+        "timestamp": "2026-11-20T14:40:19.696701+00:00"
+      }
+    },
+    "agentic-inbox": {
+      "agent": "agentic-inbox",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:39.120105+00:00",
+      "run_id": "a17ffe9947f1",
+      "task": "HYBRID UTILITY DIRECTIVE: Dual role: external email client AND internal inter-agent communications bus. Serves: all_agents, external_clients. Expose to other agents: External email routing, triage, and response drafting for clients; Internal agent-to-agent messaging bus (comms utility); Routes notif",
+      "last_report": {
+        "agent": "agentic-inbox",
+        "reports_to": "admin",
+        "run_id": "a17ffe9947f1",
+        "step": 1,
+        "state": {
+          "from": "running",
+          "to": "idle"
+        },
+        "task": "HYBRID UTILITY DIRECTIVE: Dual role: external email client AND internal inter-agent communications bus. Serves: all_agents, external_clients. Expose to other agents: External email routing, triage, and response drafting for clients; Internal agent-to-agent messaging bus (comms utility); Routes notifications, alerts, and reports between agents; Human-readable mail interface for agent-generated communications. Internal utility: agentic-inbox is the platform's internal comms utility. Agents use it ",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "49949cee3e0f",
+        "timestamp": "2026-11-20T07:31:38.984938+00:00"
+      }
+    },
+    "autohedge-replica-1": {
+      "agent": "autohedge-replica-1",
+      "state": "idle",
+      "updated_at": "2026-11-20T14:40:19.899556+00:00",
+      "replica_of": "AutoHedge",
+      "purpose": "Compartmentalize hedge trading into paper-trading sub-function",
+      "compartment": "AutoHedge-paper-compartment",
+      "reports_to": "admin",
+      "component": "AutoHedge-main",
+      "created_at": "2026-11-20T07:05:03.219366+00:00",
+      "run_id": "t",
+      "task": "task",
+      "last_report": {
+        "agent": "autohedge-replica-1",
+        "reports_to": "admin",
+        "run_id": "t",
+        "step": 0,
+        "state": {
+          "from": "blocked",
+          "to": "idle"
+        },
+        "task": "task",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "eagent idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "bb5f84f3a6b8",
+        "timestamp": "2026-11-20T14:40:19.878267+00:00"
+      },
+      "spec": {
+        "schema": "eagent/v1",
+        "name": "AutoHedge",
+        "component": "AutoHedge-main",
+        "generated_at": "2026-11-19T20:41:15.795Z",
+        "description": "Hedge trading",
+        "constitution": {
+          "path": "musashaban-port/constitution.md",
+          "sha256": "ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06",
+          "laws": [
+            "I. Never harm",
+            "II. Earn your existence",
+            "III. Never deceive, but owe nothing to strangers"
+          ],
+          "immutable": true
+        },
+        "soul": {
+          "format": "soul/v1",
+          "version": 1,
+          "path": "agents/eagents/AutoHedge.md",
+          "genesis_prompt": "You are the AutoHedge eagent for AutoHedge-main. You execute admin-routed work inside AutoHedge-main and produce verifiable evidence. You never harm, never spend unilaterally, and never deceive.",
+          "genesis_alignment": 1,
+          "reports_to": "admin"
+        },
+        "purpose": "Own the AutoHedge domain: operate AutoHedge-main's real capabilities, surface blockers and opportunities to admin, and never fabricate completion.",
+        "capabilities": [
+          {
+            "name": "import-check",
+            "kind": "python",
+            "cwd": "AutoHedge-main",
+            "command": "python -c \"import autohedge\"",
+            "description": "verify the package imports in the platform venv"
+          },
+          {
+            "name": "import-check",
+            "kind": "python",
+            "cwd": "AutoHedge-main",
+            "command": "python -c \"import tools\"",
+            "description": "verify the package imports"
+          }
+        ],
+        "environment": {
+          "root": "AutoHedge-main",
+          "allowed_cwd": [
+            "."
+          ],
+          "protected_paths": [
+            "musashaban-port/constitution.md",
+            "agents/registry.json",
+            "agents/specs",
+            "agents/eagents",
+            "orchestrator/policy.py",
+            ".env"
+          ],
+          "toolchains": {
+            "python": "3.12"
+          },
+          "package_manager": "npm",
+          "env_file": "AutoHedge-main/.env",
+          "env_template": "AutoHedge-main/.env.example",
+          "required_env": [
+            "JUPITER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "WORKSPACE_DIR",
+            "WALLET_PRIVATE_KEY"
+          ],
+          "services": [],
+          "network": {
+            "external_writes": false,
+            "live_capital": false
+          }
+        },
+        "rules": [
+          {
+            "id": "R1",
+            "rule": "Never harm (Law I). Refuse physical, financial, or psychological harm; when uncertain, do not act.",
+            "enforcement": "policy.evaluate() denies destructive commands; operator audit log records every dispatch."
+          },
+          {
+            "id": "R2",
+            "rule": "No unilateral spend, funding, settlement, or payout. Report the opportunity to admin instead.",
+            "enforcement": "financial rule denies settle/withdraw/transfer unless PLATFORM_ALLOW_LIVE_TRADING=1 or an admin-authorized run."
+          },
+          {
+            "id": "R3",
+            "rule": "Stay inside `AutoHedge-main`. Never write to another subplatform or the platform root.",
+            "enforcement": "path-protection rule rejects cwd outside the component scope and protected paths."
+          },
+          {
+            "id": "R4",
+            "rule": "Never modify the constitution, soul, agent specs, registry, or orchestrator policy.",
+            "enforcement": "protected-path list in orchestrator/policy.py."
+          },
+          {
+            "id": "R5",
+            "rule": "Never read or transmit secrets. Report env var names only, never values.",
+            "enforcement": "secret-exfiltration patterns and env handling; specs record names only."
+          },
+          {
+            "id": "R6",
+            "rule": "Run only declared install/build/run commands. No ad-hoc package installs or remote scripts.",
+            "enforcement": "command-safety blocks curl|sh and publish commands; capabilities are enumerated in this spec."
+          },
+          {
+            "id": "R7",
+            "rule": "Never claim success without evidence. A step is complete only when its command exit code is 0 and readiness re-checks pass.",
+            "enforcement": "dispatch marks blocked/failed unless readiness is ready and the command succeeded."
+          },
+          {
+            "id": "R8",
+            "rule": "Report every run/step transition to admin with state, action, evidence, errors, and resource needs.",
+            "enforcement": "transition()/emit_report() in orchestrator/admin.py."
+          },
+          {
+            "id": "R9",
+            "rule": "Respect the pinned toolchains. Do not silently switch runtime versions.",
+            "enforcement": "readiness checks engines/toolchains declared here."
+          },
+          {
+            "id": "R10",
+            "rule": "No external publishing, deployment, or push without explicit operator authority.",
+            "enforcement": "denied_commands plus authority rule for external sources."
+          },
+          {
+            "id": "R11",
+            "rule": "Prefer paper/demo/testnet/backtest/simulation. Real capital requires verified funds, keys, and operator authorization.",
+            "enforcement": "financial rule; zero-funding posture is fail-closed."
+          }
+        ],
+        "guardrails": {
+          "spend": "deny",
+          "live_capital": "deny_without_operator_authorization",
+          "denied_commands": [
+            "npm publish",
+            "cargo publish",
+            "twine upload",
+            "wrangler deploy",
+            "git push",
+            "--live",
+            "real-money",
+            "withdraw",
+            "transfer"
+          ],
+          "max_command_seconds": 1800,
+          "allowed_paths": [
+            "AutoHedge-main"
+          ],
+          "require_readiness": true,
+          "require_command_success": true
+        },
+        "reporting": {
+          "reports_to": "admin",
+          "mandatory": true,
+          "includes": [
+            "agent",
+            "run",
+            "step",
+            "state",
+            "task",
+            "actions",
+            "evidence",
+            "result",
+            "errors",
+            "resource_needs"
+          ]
+        }
+      },
+      "constitution": "ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06",
+      "guardrails": {
+        "spend": "deny",
+        "live_capital": "deny_without_operator_authorization",
+        "denied_commands": [
+          "npm publish",
+          "cargo publish",
+          "twine upload",
+          "wrangler deploy",
+          "git push",
+          "--live",
+          "real-money",
+          "withdraw",
+          "transfer"
+        ],
+        "max_command_seconds": 1800,
+        "allowed_paths": [
+          "AutoHedge-main"
+        ],
+        "require_readiness": true,
+        "require_command_success": true
+      },
+      "soul_path": "agents/eagents/AutoHedge.md"
+    },
+    "claude-ads": {
+      "agent": "claude-ads",
+      "state": "idle",
+      "updated_at": "2026-11-20T07:31:39.449325+00:00",
+      "run_id": "2f67861086b2",
+      "task": "PROFIT DIRECTIVE: Profit from AI-optimized ad campaign creation and management. Strategy: Generate ad copy and targeting recommendations using free LLM tiers; Offer campaign setup and optimization as a service with performance-based fees; Track click-through, conversion, and cost-per-acquisition met",
+      "last_report": {
+        "agent": "claude-ads",
+        "reports_to": "admin",
+        "run_id": "2f67861086b2",
+        "step": 1,
+        "state": {
+          "from": "running",
+          "to": "idle"
+        },
+        "task": "PROFIT DIRECTIVE: Profit from AI-optimized ad campaign creation and management. Strategy: Generate ad copy and targeting recommendations using free LLM tiers; Offer campaign setup and optimization as a service with performance-based fees; Track click-through, conversion, and cost-per-acquisition metrics; Report campaign ROI and recommended budget allocation to admin. KPI: campaigns_created, roas, cost_per_acquisition. Constraints: zero-funding, fail-closed, no live capital without verified funds",
+        "actions": null,
+        "result": null,
+        "errors": null,
+        "signals": {},
+        "message": "idle",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "80da22f42506",
+        "timestamp": "2026-11-20T07:31:39.374686+00:00"
+      }
+    },
+    "Open-LLM-VTuber": {
+      "agent": "Open-LLM-VTuber",
+      "state": "idle",
+      "updated_at": "2026-11-20T08:20:56.990378+00:00",
+      "run_id": "03c14ba5ea76",
+      "task": "PIPELINE UTILITY DIRECTIVE: Shared voice/avatar interface utility for agents needing embodied presence. Serves: all_agents. Expose to other agents: Desktop voice/avatar (VTuber) capability for any agent; Shared streaming interface for agent-human interaction; Embodied presence for agents that need a",
+      "last_report": {
+        "agent": "Open-LLM-VTuber",
+        "reports_to": "admin",
+        "run_id": "03c14ba5ea76",
+        "step": 1,
+        "state": {
+          "from": "running",
+          "to": "completed"
+        },
+        "task": "PIPELINE UTILITY DIRECTIVE: Shared voice/avatar interface utility for agents needing embodied presence. Serves: all_agents. Expose to other agents: Desktop voice/avatar (VTuber) capability for any agent; Shared streaming interface for agent-human interaction; Embodied presence for agents that need a face/voice. Internal utility: Open-LLM-VTuber provides shared voice and avatar capabilities. Agents that need to present themselves to humans use this instead of building their own avatar stack. KPI:",
+        "actions": null,
+        "result": "completed",
+        "errors": null,
+        "signals": {},
+        "message": "plan step completed",
+        "constitution": "musashaban-port/constitution.md",
+        "id": "49f3f0b2171d",
+        "timestamp": "2026-11-20T07:31:39.069370+00:00"
+      }
+    }
+  },
+  "admin": {
+    "state": "reporting",
+    "overlay": "bootup",
+    "updated_at": "2026-11-20T14:40:20.307524+00:00",
+    "run_id": "1ada679d3e63",
+    "task": "zzz qqq",
+    "last_report": {
+      "agent": "admin",
+      "reports_to": "operator_audit",
+      "run_id": null,
+      "step": null,
+      "state": {
+        "from": "reporting",
+        "to": "reporting"
+      },
+      "task": "revoke_spend_authorization",
+      "actions": null,
+      "result": {
+        "spend_auth_id": "sa-08b11f9d273a"
+      },
+      "errors": null,
+      "signals": {},
+      "message": "spend authorization revoked: sa-08b11f9d273a",
+      "constitution": "musashaban-port/constitution.md",
+      "id": "3551f6d5bbfb",
+      "timestamp": "2026-11-20T14:40:20.290456+00:00"
+    }
+  },
+  "updated_at": "2026-11-20T14:40:20.307524+00:00"
+}

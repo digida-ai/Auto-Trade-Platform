@@ -1,0 +1,34 @@
+{
+  "provider": "mtn-momo",
+  "baseUrl": "https://sandbox.momodeveloper.mtn.com",
+  "apiKey": "${PAYMENT_API_KEY}",
+  "callbackUrl": "https://merchant.example/webhooks/payment",
+  "defaultCountry": "UG",
+  "defaultCurrency": "UGX",
+  "endpoints": {
+    "collect": "/collection/v1_0/requesttopay",
+    "disburse": "/disbursement/v1_0/transfer",
+    "transfer": "/transfers",
+    "status": "/collection/v1_0/requesttopay/{reference}"
+  },
+  "examples": {
+    "mpesa_collect": {
+      "amount": 1500.0,
+      "currency": "KES",
+      "method": "mobile_money",
+      "provider": "mpesa",
+      "payer": { "name": "Jane Wanjiku", "phone": "254712345678", "country": "KE" },
+      "reference": "ORDER-KE-1001",
+      "description": "Order payment"
+    },
+    "mtn_momo_collect": {
+      "amount": 50000.0,
+      "currency": "UGX",
+      "method": "mobile_money",
+      "provider": "mtn_momo",
+      "payer": { "name": "Kato Musa", "phone": "256771234567", "country": "UG" },
+      "reference": "ORDER-UG-2001",
+      "description": "Wallet top-up"
+    }
+  }
+}

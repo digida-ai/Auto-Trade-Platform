@@ -1,0 +1,26 @@
+# Shared Python requirements repository for the whole platform.
+#
+# `npm run init` (and `npm start` on first run) creates the single root .venv
+# and installs this file. Every Python module uses that environment; modules
+# with no third-party dependencies are listed here for completeness.
+
+# AutoHedge
+-r AutoHedge-main/requirements.txt
+-e ./AutoHedge-main
+python-dotenv>=1.0
+
+# claude-ads
+-r claude-ads-main/requirements.txt
+
+# Local Python packages (editable: source stays in each component directory)
+-e ./claude-ads-main
+-e ./Scrapling-main
+-e ./vibetrading-main
+-e ./Open-LLM-VTuber-main
+
+# Resolution constraints live in constraints.txt (mcp<2 keeps swarms/AutoHedge
+# and Open-LLM-VTuber importable; see the file for the conflict details).
+
+# Pix-Payment-System/python and grok-jev-router are standard-library only.
+# agentic-inbox, freellmapi, hyperframes, LibreChat and Open-Higgsfield-AI are
+# JavaScript and are covered by the root package.json workspaces.

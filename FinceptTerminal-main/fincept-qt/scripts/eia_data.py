@@ -1,0 +1,590 @@
+# EIA (U.S. Energy Information Administration) Data Wrapper
+# Provides access to Weekly Petroleum Status Report and Short Term Energy Outlook data
+
+import os
+import re
+import sys
+import json
+import asyncio
+from typing import Dict, List, Optional, Union, Any, Literal
+from datetime import datetime, date
+from io import BytesIO
+import warnings
+
+import requests
+import pandas as pd
+from numpy import nan
+
+# Every result print goes through fincept_json: a non-finite number prints null instead of the
+# bare NaN token, which is not JSON and makes the terminal discard the whole payload.
+try:
+    import fincept_json
+except ImportError:  # scripts dir not on sys.path (unusual launcher)
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import fincept_json
+
+# Constants
+BASE_API_URL = "https://api.eia.gov/v2/"
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+]
+
+# Petroleum Status Report categories and tables
+WPSR_CATEGORY_CHOICES = [
+    "balance_sheet",
+    "inputs_and_production",
+    "refiner_blender_net_production",
+    "crude_petroleum_stocks",
+    "gasoline_fuel_stocks",
+    "total_gasoline_by_sub_padd",
+    "distillate_fuel_oil_stocks",
+    "imports",
+    "imports_by_country",
+    "weekly_estimates",
+    "spot_prices_crude_gas_heating",
+    "spot_prices_diesel_jet_fuel_propane",
+    "retail_prices",
+]
+
+WPSR_FILE_MAP = {
+    "balance_sheet": "https://ir.eia.gov/wpsr/psw01.xls",
+    "inputs_and_production": "https://ir.eia.gov/wpsr/psw02.xls",
+    "refiner_blender_net_production": "https://ir.eia.gov/wpsr/psw03.xls",
+    "crude_petroleum_stocks": "https://ir.eia.gov/wpsr/psw04.xls",
+    "gasoline_fuel_stocks": "https://ir.eia.gov/wpsr/psw05.xls",
+    "total_gasoline_by_sub_padd": "https://ir.eia.gov/wpsr/psw05a.xls",
+    "distillate_fuel_oil_stocks": "https://ir.eia.gov/wpsr/psw06.xls",
+    "imports": "https://ir.eia.gov/wpsr/psw07.xls",
+    "imports_by_country": "https://ir.eia.gov/wpsr/psw08.xls",
+    "weekly_estimates": "https://ir.eia.gov/wpsr/psw09.xls",
+    # psw11 / psw12 / psw14 answer HTTP 403 now (checked 2026-11-09). EIA's own history
+    # workbooks carry the same series in the same layout: daily spot prices (sheets
+    # Data 1-4 crude / gasoline / RBOB / heating oil, Data 5-7 ULSD / jet fuel / propane)
+    # and weekly retail gasoline and diesel prices.
+    "spot_prices_crude_gas_heating": "https://www.eia.gov/dnav/pet/xls/PET_PRI_SPT_S1_D.xls",
+    "spot_prices_diesel_jet_fuel_propane": "https://www.eia.gov/dnav/pet/xls/PET_PRI_SPT_S1_D.xls",
+    "retail_prices": "https://www.eia.gov/dnav/pet/xls/PET_PRI_GND_DCUS_NUS_W.xls",
+}
+
+# Categories that read only some sheets of a shared workbook
+WPSR_SHEETS = {
+    "spot_prices_crude_gas_heating": {"Data 1", "Data 2", "Data 3", "Data 4"},
+    "spot_prices_diesel_jet_fuel_propane": {"Data 5", "Data 6", "Data 7"},
+}
+
+# STEO Table mappings (subset for commonly used tables)
+STEO_TABLE_NAMES = {
+    "01": "US Energy Markets Summary",
+    "02": "Nominal Energy Prices",
+    "04a": "US Petroleum and Other Liquid Fuels Supply, Consumption, and Inventories",
+    "05a": "US Natural Gas Supply, Consumption, and Inventories",
+    "07a": "US Electricity Industry Overview",
+    "09a": "US Macroeconomic Indicators and CO2 Emissions",
+}
+
+STEO_SYMBOLS_MAP = {
+    "01": ["COPRPUS", "NGPRPUS", "WTIPUUS", "NGHHUUS", "ESTXPUS", "RETCBUS", "TETCFUEL"],
+    "02": ["WTIPUUS", "BREPUUS", "RAIMUUS", "RACPUUS", "NGHHUUS", "CLEUDUS"],
+    "04a": ["COPRPUS", "PASUPPLY", "PATCPUSX", "NGTCPUS", "EOTCPUS", "PAIMPORT", "PASXPUS"],
+    "05a": ["NGMPPUS", "NGSUPP", "NGPRPUS", "NGNWPUS", "NGSFPUS", "NGIMPUS_LNG", "NGEXPUS_LNG"],
+    "07a": ["ELSUTWH", "EPEOTWH", "INEOTWH", "CMEOTWH", "ELNITWH", "SODTP_US"],
+    "09a": ["GDPQXUS", "CONSRUS", "I87RXUS", "YD87OUS", "EMNFPUS", "TETCCO2"],
+}
+
+class EIAError(Exception):
+    """Custom exception for EIA API errors"""
+    pass
+
+def _redact_api_key(message: str) -> str:
+    """Mask the api_key query parameter that requests echoes back in error text."""
+    return re.sub(r"(api_key=)[^&\s]+", r"\1***", message)
+
+class EIADataFetcher:
+    """Fault-tolerant EIA data fetcher"""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': USER_AGENTS[0],
+            'Accept': 'application/json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        })
+
+    def _get_random_user_agent(self) -> str:
+        """Get a random user agent"""
+        import random
+        return random.choice(USER_AGENTS)
+
+    def _make_request(self, url: str, timeout: int = 60) -> Optional[Union[Dict, bytes]]:
+        """Make HTTP request with error handling"""
+        try:
+            # Rotate user agent
+            self.session.headers['User-Agent'] = self._get_random_user_agent()
+
+            response = self.session.get(url, timeout=timeout)
+            response.raise_for_status()
+
+            # Check content type
+            content_type = response.headers.get('content-type', '').lower()
+            if 'application/json' in content_type:
+                return response.json()
+            elif 'excel' in content_type or 'spreadsheet' in content_type:
+                return response.content
+            else:
+                return response.content
+
+        except requests.exceptions.RequestException as e:
+            raise EIAError(_redact_api_key(f"HTTP request failed for {url}: {str(e)}"))
+        except Exception as e:
+            raise EIAError(_redact_api_key(f"Unexpected error fetching {url}: {str(e)}"))
+
+    def _parse_petroleum_excel(self, excel_data: bytes, category: str, tables: List[str]) -> List[Dict]:
+        """Parse an EIA petroleum workbook into long rows.
+
+        Every "Data N" sheet has a title row ("Data 1: Stocks of Crude Oil ..."), a "Sourcekey" row
+        with the series ids, a "Date" row with the series names, then one row per date; the
+        "Contents" sheet has no data. Reading the title row as the header labelled every series
+        with the sheet title or "Unnamed: N", so the values could not be told apart.
+
+        `tables` keeps only the series whose sheet name, sheet title or series name contains one of
+        the given words ("conventional_gas" matches "Conventional Gasoline"); "all" keeps all.
+        """
+        try:
+            xls = pd.ExcelFile(BytesIO(excel_data))
+            wanted_sheets = WPSR_SHEETS.get(category)
+            words = [t.strip().lower().replace("_", " ") for t in (tables or []) if t and t.strip()]
+            if "all" in words:
+                words = []
+            results = []
+
+            for sheet_name in xls.sheet_names:
+                if wanted_sheets is not None and sheet_name not in wanted_sheets:
+                    continue
+                raw = pd.read_excel(xls, sheet_name=sheet_name, header=None)
+                if raw.empty or raw.shape[1] < 2:
+                    continue
+
+                first_col = raw.iloc[:, 0].astype(str).str.strip()
+                date_rows = list(first_col.index[first_col == "Date"])
+                if not date_rows:
+                    continue  # the Contents sheet, or a layout this parser does not know
+                header = date_rows[0]
+                key_rows = list(first_col.index[first_col == "Sourcekey"])
+                names = raw.iloc[header].tolist()
+                keys = raw.iloc[key_rows[0]].tolist() if key_rows else names
+                sheet_title = str(raw.iloc[0, 1]).strip() if header > 0 and pd.notna(raw.iloc[0, 1]) else sheet_name
+
+                data = raw.iloc[header + 1:]
+                dates = pd.to_datetime(data.iloc[:, 0], errors="coerce")
+
+                for col in range(1, raw.shape[1]):
+                    title = str(names[col]).strip() if pd.notna(names[col]) else ""
+                    symbol = str(keys[col]).strip() if pd.notna(keys[col]) else ""
+                    if not title and not symbol:
+                        continue
+                    haystack = f"{sheet_name} {sheet_title} {title}".lower()
+                    if words and not any(w in haystack for w in words):
+                        continue
+                    values = pd.to_numeric(data.iloc[:, col], errors="coerce")
+                    for day, value in zip(dates, values):
+                        if pd.isna(day) or pd.isna(value):
+                            continue
+                        results.append({
+                            "date": day.strftime("%Y-%m-%d"),
+                            "category": category,
+                            "table": sheet_title,
+                            "symbol": symbol or title,
+                            "title": title,
+                            "value": float(value),
+                            "source": "petroleum_status_report"
+                        })
+
+            if not results and words:
+                raise EIAError(f"No {category} series match tables={','.join(tables)}")
+            return results
+
+        except EIAError:
+            raise
+        except Exception as e:
+            raise EIAError(f"Error parsing petroleum Excel data for {category}: {str(e)}")
+
+    def _parse_steo_data(self, api_data: Dict, table: str) -> List[Dict]:
+        """Parse STEO API data"""
+        try:
+            results = []
+            data = api_data.get('response', {}).get('data', [])
+
+            for item in data:
+                results.append({
+                    "date": item.get('period', ''),
+                    "symbol": item.get('seriesId', ''),
+                    "title": item.get('seriesDescription', ''),
+                    "value": item.get('value', None),
+                    "units": item.get('unitsofmeasure', ''),
+                    "table": f"STEO-{table}: {STEO_TABLE_NAMES.get(table, table)}",
+                    "source": "short_term_energy_outlook"
+                })
+
+            return results
+
+        except Exception as e:
+            raise EIAError(f"Error parsing STEO data for table {table}: {str(e)}")
+
+    def get_petroleum_status_report(
+        self,
+        category: str = "balance_sheet",
+        tables: Optional[List[str]] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        use_cache: bool = True
+    ) -> Dict[str, Any]:
+        """Get petroleum status report data"""
+        try:
+            if category not in WPSR_CATEGORY_CHOICES:
+                raise EIAError(f"Invalid category: {category}. Valid choices: {WPSR_CATEGORY_CHOICES}")
+
+            url = WPSR_FILE_MAP.get(category)
+            if not url:
+                raise EIAError(f"No URL found for category: {category}")
+
+            # Get Excel data
+            excel_data = self._make_request(url)
+            if not excel_data:
+                raise EIAError(f"No data received from {url}")
+
+            # Determine tables to fetch
+            if not tables:
+                tables = ["all"]  # Default to get all tables
+
+            # Parse the data
+            results = self._parse_petroleum_excel(excel_data, category, tables)
+
+            # Filter by date range if provided
+            if start_date:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+                results = [r for r in results if datetime.strptime(r['date'], '%Y-%m-%d').date() >= start_date_obj]
+
+            if end_date:
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+                results = [r for r in results if datetime.strptime(r['date'], '%Y-%m-%d').date() <= end_date_obj]
+
+            return {
+                "success": True,
+                "category": category,
+                "tables": tables,
+                "data": results,
+                "count": len(results),
+                "url": url
+            }
+
+        except EIAError:
+            raise
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error fetching petroleum status report: {str(e)}",
+                "category": category
+            }
+
+    def get_short_term_energy_outlook(
+        self,
+        table: str = "01",
+        symbols: Optional[List[str]] = None,
+        frequency: Literal["month", "quarter", "annual"] = "month",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get short term energy outlook data"""
+        try:
+            if not self.api_key:
+                raise EIAError("API key required for STEO data")
+
+            if table not in STEO_TABLE_NAMES:
+                raise EIAError(f"Invalid table: {table}. Valid choices: {list(STEO_TABLE_NAMES.keys())}")
+
+            # Get symbols for the table
+            if not symbols:
+                symbols = STEO_SYMBOLS_MAP.get(table, [])
+
+            if not symbols:
+                raise EIAError(f"No symbols available for table: {table}")
+
+            # Build API URL
+            frequency_map = {
+                "month": "monthly",
+                "quarter": "quarterly",
+                "annual": "annual"
+            }
+
+            base_url = f"{BASE_API_URL}steo/data/?api_key={self.api_key}&frequency={frequency_map[frequency]}&data[0]=value"
+
+            # Add symbols to URL (limit to 10 per request)
+            results = []
+            for i in range(0, len(symbols), 10):
+                symbol_chunk = symbols[i:i+10]
+                url_symbols = ""
+                for symbol in symbol_chunk:
+                    url_symbols += f"&facets[seriesId][]={symbol}"
+
+                # Add date filters
+                if start_date:
+                    if frequency == "monthly":
+                        url_date = f"&start={datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m')}"
+                    elif frequency == "quarterly":
+                        quarter = (datetime.strptime(start_date, '%Y-%m-%d').month - 1) // 3 + 1
+                        url_date = f"&start={datetime.strptime(start_date, '%Y-%m-%d').year}-Q{quarter}"
+                    else:  # annual
+                        url_date = f"&start={datetime.strptime(start_date, '%Y-%m-%d').year}"
+                    url_symbols += url_date
+
+                if end_date:
+                    if frequency == "monthly":
+                        url_date = f"&end={datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m')}"
+                    elif frequency == "quarterly":
+                        quarter = (datetime.strptime(end_date, '%Y-%m-%d').month - 1) // 3 + 1
+                        url_date = f"&end={datetime.strptime(end_date, '%Y-%m-%d').year}-Q{quarter}"
+                    else:  # annual
+                        url_date = f"&end={datetime.strptime(end_date, '%Y-%m-%d').year}"
+                    url_symbols += url_date
+
+                url = f"{base_url}{url_symbols}&offset=0&length=5000"
+
+                # Make API request
+                api_data = self._make_request(url)
+                if api_data and isinstance(api_data, dict):
+                    chunk_results = self._parse_steo_data(api_data, table)
+                    results.extend(chunk_results)
+
+            # Sort results by date
+            results.sort(key=lambda x: x['date'])
+
+            return {
+                "success": True,
+                "table": table,
+                "table_name": STEO_TABLE_NAMES[table],
+                "frequency": frequency,
+                "symbols": symbols,
+                "data": results,
+                "count": len(results)
+            }
+
+        except EIAError:
+            raise
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error fetching STEO data: {str(e)}",
+                "table": table
+            }
+
+    def get_available_categories(self) -> Dict[str, Any]:
+        """Get available petroleum status report categories"""
+        return {
+            "success": True,
+            "categories": WPSR_CATEGORY_CHOICES,
+            "total_categories": len(WPSR_CATEGORY_CHOICES),
+            "file_urls": WPSR_FILE_MAP
+        }
+
+    def get_available_steo_tables(self) -> Dict[str, Any]:
+        """Get available STEO tables"""
+        return {
+            "success": True,
+            "tables": STEO_TABLE_NAMES,
+            "symbols_map": STEO_SYMBOLS_MAP,
+            "total_tables": len(STEO_TABLE_NAMES)
+        }
+
+    def get_energy_overview(self, limit: Optional[int] = None) -> Dict[str, Any]:
+        """Get comprehensive energy overview"""
+        results = []
+        errors = []
+
+        # Get petroleum data (no API key required)
+        try:
+            petroleum_data = self.get_petroleum_status_report("balance_sheet", ["stocks", "supply"])
+            results.append(("petroleum_balance", petroleum_data))
+        except Exception as e:
+            errors.append(("petroleum_balance", str(e)))
+
+        # Get STEO data (API key required)
+        if self.api_key:
+            try:
+                steo_data = self.get_short_term_energy_outlook("01", frequency="month")
+                results.append(("energy_markets_summary", steo_data))
+            except Exception as e:
+                errors.append(("energy_markets_summary", str(e)))
+
+            try:
+                natural_gas_data = self.get_short_term_energy_outlook("05a", frequency="month")
+                results.append(("natural_gas", natural_gas_data))
+            except Exception as e:
+                errors.append(("natural_gas", str(e)))
+
+        overview = {
+            "success": len(results) > 0,
+            "results": results,
+            "errors": errors,
+            "total_requests": len(results) + len(errors),
+            "successful_fetches": len(results),
+            "failed_fetches": len(errors)
+        }
+        if not results:
+            # "success": false alone is not read as a failure by the terminal (it looks for
+            # "error"), so a run where every fetch failed showed as an empty success.
+            overview["error"] = "; ".join(f"{name}: {msg}" for name, msg in errors) or "No EIA data fetched"
+        return overview
+
+def main(args=None):
+    
+    if args is None:
+        args = sys.argv[1:]
+    """CLI interface for EIA data wrapper"""
+    if len(args) + 1 < 2:
+        print(json.dumps({
+            "success": False,
+            "error": "Usage: python eia_data.py <command> [args...]"
+        }))
+        sys.exit(1)
+
+    command = args[0]
+    # EIA_API_KEY is injected from Settings > Credentials (or the shell). Without it the key-free
+    # WPSR commands still work; get_steo reports "API key required".
+    api_key = os.environ.get("EIA_API_KEY") or None
+
+    try:
+        fetcher = EIADataFetcher(api_key=api_key)
+
+        if command == "get_petroleum":
+            # Usage: get_petroleum <category> [tables_csv] [start_date] [end_date] [symbol] [latest_weeks]
+            if len(args) + 1 < 3:
+                print(json.dumps({
+                    "success": False,
+                    "error": "Usage: python eia_data.py get_petroleum <category> [tables_csv] [start_date] [end_date] [symbol] [latest_weeks]"
+                }))
+                sys.exit(1)
+
+            category = args[1]
+            # An empty positional means "not set".
+            tables = ([t for t in args[2].split(',') if t.strip()] or None) if len(args) + 1 > 3 else None
+            start_date = (args[3] or None) if len(args) + 1 > 4 else None
+            end_date = (args[4] or None) if len(args) + 1 > 5 else None
+            symbol = (args[5] or None) if len(args) + 1 > 6 else None
+            # latest_weeks: keep only the last N report weeks of the answer (a panel's default view:
+            # balance_sheet over five years is ~23,500 rows / 7.6 MB, its last 8 weeks ~700 rows).
+            # Blank / absent = every week in the window, as before.
+            latest_weeks = (args[6] or None) if len(args) + 1 > 7 else None
+            if latest_weeks is not None:
+                try:
+                    latest_weeks = int(latest_weeks)
+                except ValueError:
+                    latest_weeks = 0
+                if latest_weeks < 1:
+                    print(json.dumps({"success": False, "code": "bad_args",
+                                      "error": f"latest_weeks must be a whole number of weeks >= 1 (got {args[6]!r})"}))
+                    return
+            # Every symbol's full history since 1982 was one answer of up to 134k rows / 43 MB (the
+            # desktop froze parsing it). Default to the last five years.
+            if not start_date:
+                start_date = date(date.today().year - 5, date.today().month, 1).isoformat()
+
+            result = fetcher.get_petroleum_status_report(category, tables, start_date, end_date)
+            if symbol and isinstance(result, dict) and isinstance(result.get("data"), list):
+                wanted = {s.strip() for s in symbol.split(',') if s.strip()}
+                result["data"] = [r for r in result["data"] if r.get("symbol") in wanted]
+                result["count"] = len(result["data"])
+            if latest_weeks and isinstance(result, dict) and isinstance(result.get("data"), list):
+                weeks = sorted({r["date"] for r in result["data"]})[-latest_weeks:]
+                if weeks:
+                    result["data"] = [r for r in result["data"] if r["date"] >= weeks[0]]
+                    result["count"] = len(result["data"])
+                result["latest_weeks"] = latest_weeks
+            if isinstance(result, dict):
+                result["start_date"] = start_date
+            # One line (indent=2 tripled the size of a multi-MB answer and split the payload).
+            print(fincept_json.dumps(result, ensure_ascii=True))
+
+        elif command == "get_steo":
+            # Usage: get_steo <table> [symbols_csv] [frequency] [start_date] [end_date]
+            if len(args) + 1 < 3:
+                print(json.dumps({
+                    "success": False,
+                    "error": "Usage: python eia_data.py get_steo <table> [symbols_csv] [frequency] [start_date] [end_date]"
+                }))
+                sys.exit(1)
+
+            table = args[1]
+            symbols = args[2].split(',') if len(args) + 1 > 3 and args[2] else None
+            frequency = args[3] if len(args) + 1 > 4 else "month"
+            start_date = args[4] if len(args) + 1 > 5 else None
+            end_date = sys.argv[6] if len(args) + 1 > 6 else None
+
+            result = fetcher.get_short_term_energy_outlook(table, symbols, frequency, start_date, end_date)
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "available_categories":
+            result = fetcher.get_available_categories()
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "available_steo_tables":
+            result = fetcher.get_available_steo_tables()
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "energy_overview":
+            limit = int(args[1]) if len(args) + 1 > 2 else None
+            result = fetcher.get_energy_overview(limit)
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_crude_stocks":
+            # Convenience method for crude stocks
+            result = fetcher.get_petroleum_status_report("crude_petroleum_stocks", ["stocks"])
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_gasoline_stocks":
+            # Convenience method for gasoline stocks
+            result = fetcher.get_petroleum_status_report("gasoline_fuel_stocks", ["stocks"])
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_petroleum_imports":
+            # Convenience method for petroleum imports
+            start_date = args[1] if len(args) + 1 > 2 else None
+            end_date = args[2] if len(args) + 1 > 3 else None
+            result = fetcher.get_petroleum_status_report("imports", ["imports"], start_date, end_date)
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_spot_prices":
+            # Convenience method for spot prices
+            result = fetcher.get_petroleum_status_report("spot_prices_crude_gas_heating", ["crude", "conventional_gas"])
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_energy_markets_summary":
+            # Convenience method for energy markets summary
+            result = fetcher.get_short_term_energy_outlook("01", frequency="month")
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        elif command == "get_natural_gas_summary":
+            # Convenience method for natural gas summary
+            result = fetcher.get_short_term_energy_outlook("05a", frequency="month")
+            print(fincept_json.dumps(result, indent=2, ensure_ascii=True))
+
+        else:
+            print(json.dumps({
+                "success": False,
+                "error": f"Unknown command: {command}. Available commands: get_petroleum, get_steo, available_categories, available_steo_tables, energy_overview, get_crude_stocks, get_gasoline_stocks, get_petroleum_imports, get_spot_prices, get_energy_markets_summary, get_natural_gas_summary"
+            }))
+            sys.exit(1)
+
+    except Exception as e:
+        print(json.dumps({
+            "success": False,
+            "error": f"Command execution failed: {str(e)}"
+        }))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

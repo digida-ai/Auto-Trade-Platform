@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "status": "harmonized",
+  "creatorAddress": "0x61f9FAC0A44e0D975673CB97fc4A615B16398846",
+  "walletAddress": "0x61f9FAC0A44e0D975673CB97fc4A615B16398846",
+  "wallets": {
+    "evm": "0x61f9FAC0A44e0D975673CB97fc4A615B16398846",
+    "tron": null,
+    "bitcoin": null,
+    "solana": null,
+    "stellar": null
+  },
+  "settlement": {
+    "spend": {
+      "autoSettleTo": "0x61f9FAC0A44e0D975673CB97fc4A615B16398846"
+    },
+    "rudipay": {
+      "admins": [
+        "0x61f9FAC0A44e0D975673CB97fc4A615B16398846"
+      ],
+      "countryCode": "UG",
+      "preferredRouterPhones": [
+        "+256780135102",
+        "+256780698353",
+        "+256700677543",
+        "+256731235987",
+        "+256707319020"
+      ]
+    },
+    "socials": {
+      "whatsapp": "+256700677543",
+      "telegram": "+256700677543"
+    },
+    "bank": {
+      "name": "EXIM Uganda",
+      "code": "0080010865",
+      "swift": "EXTNUGAKXXX"
+    },
+    "onchain": {
+      "creatorAddress": "0x61f9FAC0A44e0D975673CB97fc4A615B16398846"
+    }
+  },
+  "payment": {
+    "defaultAsset": "usdt",
+    "assetPriority": [
+      "usdt",
+      "dai",
+      "eurc",
+      "usdc"
+    ]
+  },
+  "marketplaces": [
+    {
+      "id": "jumia",
+      "label": "Jumia Uganda Seller Center",
+      "status": "provided"
+    },
+    {
+      "id": "jiji",
+      "label": "Jiji Uganda",
+      "status": "provided"
+    },
+    {
+      "id": "alibaba",
+      "label": "Alibaba.com",
+      "status": "provided"
+    },
+    {
+      "id": "kilimall",
+      "label": "Kilimall Uganda",
+      "status": "provided"
+    },
+    {
+      "id": "facebook",
+      "label": "Facebook Commerce",
+      "status": "provided"
+    },
+    {
+      "id": "whatsapp",
+      "label": "WhatsApp +256700677543",
+      "status": "provided",
+      "phone": "+256700677543"
+    },
+    {
+      "id": "telegram",
+      "label": "Telegram +256700677543",
+      "status": "provided",
+      "phone": "+256700677543"
+    }
+  ],
+  "endpoints": {
+    "ollamaBaseUrl": "http://127.0.0.1:11434",
+    "freellmapiBaseUrl": "http://127.0.0.1:31416/v1",
+    "ownCloudApiUrl": "http://127.0.0.1:4080"
+  },
+  "provisioning": {
+    "ownCloudApiKey": "",
+    "ownCloud.automatonId": "",
+    "settlement.otp.gatewaySecret": "",
+    "settlement.otp.key": "",
+    "settlement.paywall.redirectUrl": null
+  }
+}

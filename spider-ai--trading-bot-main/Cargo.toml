@@ -1,0 +1,33 @@
+[package]
+name = "polymarket-copy-trading-bot-rust"
+version = "0.1.0"
+edition = "2021"
+description = "Restored manifest for the bundled Spider AI trading bot source tree"
+
+[lib]
+name = "polymarket_copy_trading_bot_rust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "spider-ai-trading-bot"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+colored = "2"
+# Source uses the mongodb 2.x API (delete_many/update_one/count_documents with
+# an explicit options argument) and tokio-tungstenite 0.20 Message::Text(String).
+mongodb = "2"
+dotenvy = "0.15"
+url = "2"
+regex = "1"
+reqwest = { version = "0.13", features = ["json"] }
+futures-util = "0.3"
+tempfile = "3"
+tokio-tungstenite = "0.20"
+alloy = { version = "1", features = ["full"] }
+polymarket-client-sdk = { version = "0.4", features = ["clob"] }

@@ -1,0 +1,34 @@
+# Dependencies and generated environments
+node_modules/
+.venv/
+.cache/
+.agent-cache/
+
+# Installer / orchestrator logs
+.install.log
+.py-install.log
+.orch-test.log
+orchestrator.err
+orchestrator.out
+
+# Runtime state and reports
+orchestrator/state/runs/
+orchestrator/state/reports/
+orchestrator/state/init-state.json
+orchestrator/state/alerts.json
+orchestrator/state/agent-states.json
+
+# Component-local environment files (scaffolded from .env.example)
+*/.env
+.env
+.mcp.json
+
+# Local agent/runtime state
+.agents/
+.agentsroom/
+.claude/
+agent_workspace/
+
+# Python
+__pycache__/
+*.pyc

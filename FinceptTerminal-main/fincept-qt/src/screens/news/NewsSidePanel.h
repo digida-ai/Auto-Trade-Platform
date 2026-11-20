@@ -1,0 +1,154 @@
+#pragma once
+#include "services/news/NewsCorrelationService.h"
+#include "services/news/NewsMonitorService.h"
+#include "services/news/NewsNlpService.h"
+#include "services/news/NewsService.h"
+
+#include <QEvent>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMap>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QWidget>
+
+namespace fincept::screens {
+
+/// How often one ticker is mentioned in the current feed, and in what tone.
+struct NewsTickerMention {
+    QString symbol;             ///< ticker as shown (holding symbol for the holdings list)
+    int count = 0;              ///< articles that mention it
+    int bullish = 0;            ///< of which tagged bullish
+    int bearish = 0;            ///< of which tagged bearish
+    double net_sentiment = 0.0; ///< mean finance-VADER score of the SCORED articles, -1..1
+    int64_t latest_ts = 0;      ///< newest mention, unix seconds
+    int scored = 0;             ///< articles with a measured tone (net_sentiment is their mean)
+    int previous = -1;          ///< mentions in the previous window of the same length; -1 = unknown
+    QString earnings;           ///< "ER 3d" when the company reports soon
+};
+
+/// Intelligence drawer — slides in from the left over the feed panel.
+/// Contains all advanced intelligence sections: monitors, top stories,
+/// categories, entities, places, signals, prediction markets, bookmarks.
+/// Toggled via the INTEL button in the command bar.
+class NewsSidePanel : public QWidget {
+    Q_OBJECT
+  public:
+    explicit NewsSidePanel(QWidget* parent = nullptr);
+
+    void update_top_stories(const QVector<services::NewsArticle>& top);
+    void update_categories(const QMap<QString, int>& counts);
+    void update_monitors(const QVector<services::NewsMonitor>& monitors,
+                         const QMap<QString, QVector<services::NewsArticle>>& matches);
+    void update_deviations(const QVector<QPair<QString, double>>& deviations);
+    void update_entities(const services::NerResult& ner);
+    void update_locations(const QVector<services::ArticleGeo>& geo);
+    void update_signals(const QVector<services::CorrelationSignal>& sigs);
+    void update_predictions(const QVector<services::PredictionMarket>& predictions);
+    /// Bookmarks: the newest kSavedPreview, or all of them after "Show all".
+    void update_saved(const QVector<services::NewsArticle>& saved);
+    /// Deviations section note when the volume baseline is still being built
+    /// (`observed_hours` of the 24 needed).
+    void update_baseline_status(int observed_hours, int needed_hours);
+    /// Most-mentioned tickers in the current feed with their net tone.
+    void update_trending(const QVector<NewsTickerMention>& trending);
+    /// The user's portfolio holdings that appear in the current feed.
+    void update_holdings_mentions(const QVector<NewsTickerMention>& mentions);
+
+    /// Show / hide the drawer (the screen keeps the INTEL button in sync).
+    void set_drawer_open(bool open);
+    bool is_drawer_open() const { return drawer_open_; }
+
+  protected:
+    void changeEvent(QEvent* event) override;
+
+  signals:
+    void category_clicked(const QString& category);
+    void article_clicked(const services::NewsArticle& article);
+    void monitor_added(const QString& label, const QStringList& keywords);
+    void monitor_toggled(const QString& id);
+    void monitor_deleted(const QString& id);
+    /// A trending ticker / holding row was clicked — filter the feed by it.
+    void ticker_clicked(const QString& symbol);
+    /// The drawer's own close button was clicked (the screen closes it).
+    void close_requested();
+
+  private:
+    void build_top_stories_section(QVBoxLayout* parent);
+    /// One "N mentions · tone" row per ticker into `layout` (shared by both lists).
+    void fill_mentions(QVBoxLayout* layout, QWidget* section, const QVector<NewsTickerMention>& rows);
+    void build_categories_section(QVBoxLayout* parent);
+    void build_monitors_section(QVBoxLayout* parent);
+    void build_deviations_section(QVBoxLayout* parent);
+
+    /// Re-apply tr() lookups to every widget whose text we keep a handle to.
+    /// Called from changeEvent() on QEvent::LanguageChange.
+    void retranslateUi();
+
+    bool drawer_open_ = false;
+
+    // Header + fixed section titles (cached for retranslateUi).
+    QLabel* drawer_title_ = nullptr;
+    QLabel* top_stories_title_ = nullptr;
+    QLabel* categories_title_ = nullptr;
+    QLabel* monitors_title_ = nullptr;
+    QLabel* deviations_title_ = nullptr;
+    QLabel* entities_title_ = nullptr;
+    QLabel* locations_title_ = nullptr;
+    QLabel* signals_title_ = nullptr;
+    QLabel* predictions_title_ = nullptr;
+    QLabel* saved_title_ = nullptr;
+
+    // Top stories
+    QVBoxLayout* top_stories_layout_ = nullptr;
+
+    // Trending tickers / holdings in the news
+    QWidget* trending_section_ = nullptr;
+    QVBoxLayout* trending_layout_ = nullptr;
+    QLabel* trending_title_ = nullptr;
+    QWidget* holdings_section_ = nullptr;
+    QVBoxLayout* holdings_layout_ = nullptr;
+    QLabel* holdings_title_ = nullptr;
+
+    // Categories
+    QVBoxLayout* categories_layout_ = nullptr;
+
+    // Monitors
+    QVBoxLayout* monitors_layout_ = nullptr;
+    QLineEdit* monitor_input_ = nullptr;
+
+    // Deviations
+    QVBoxLayout* deviations_layout_ = nullptr;
+    QWidget* deviations_section_ = nullptr;
+
+    // Entities (NER)
+    QVBoxLayout* entities_layout_ = nullptr;
+    QWidget* entities_section_ = nullptr;
+
+    // Locations
+    QVBoxLayout* locations_layout_ = nullptr;
+    QWidget* locations_section_ = nullptr;
+
+    // Correlation signals
+    QVBoxLayout* signals_layout_ = nullptr;
+    QWidget* signals_section_ = nullptr;
+
+    // Prediction markets
+    QVBoxLayout* predictions_layout_ = nullptr;
+    QWidget* predictions_section_ = nullptr;
+    QLabel* predictions_source_ = nullptr; // "Manifold Markets (play money)" disclosure
+
+    // Saved / bookmarked articles
+    QVBoxLayout* saved_layout_ = nullptr;
+    QWidget* saved_section_ = nullptr;
+    QPushButton* saved_more_btn_ = nullptr;
+    QVector<services::NewsArticle> saved_all_;
+    bool saved_show_all_ = false;
+    static constexpr int kSavedPreview = 10;
+    void render_saved();
+
+    QLabel* baseline_note_ = nullptr;
+    QVector<QPair<QString, double>> last_deviations_;
+};
+
+} // namespace fincept::screens

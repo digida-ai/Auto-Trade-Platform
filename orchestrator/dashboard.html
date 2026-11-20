@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoTrading Ideal Platform — Orchestrator</title>
+  <style>
+    :root { --bg:#070b16; --panel:#0f1629; --panel2:#0b1224; --panel3:#121c36; --text:#eaf1ff; --muted:#93a7cf; --accent:#4ea1ff; --accent2:#7c5cff; --ok:#34d399; --bad:#fb7185; --warn:#fbbf24; --border:#1d2b4d; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: radial-gradient(1200px 600px at 10% -10%, #14214a 0%, transparent 60%), var(--bg); color:var(--text); }
+    header { padding: 16px 22px; border-bottom:1px solid var(--border); background:rgba(10,16,32,.85); backdrop-filter: blur(8px); position:sticky; top:0; z-index:5; }
+    h1 { margin:0; font-size:18px; font-weight:700; }
+    .sub { color:var(--muted); font-size:12px; margin-top:3px; }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 16px 22px 40px; }
+    .layout { display:grid; grid-template-columns: 1.35fr 0.95fr; gap:14px; }
+    @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+    .card h2 { margin:0 0 10px; font-size:14px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:var(--panel2); color:var(--muted); }
+    .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); box-shadow:0 0 0 0 rgba(0,0,0,0); }
+    .ok .dot { background:var(--ok); } .bad .dot { background:var(--bad); }
+    .runstate .dot { background:var(--warn); animation:pulse 1.2s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(251,191,36,.6);} 70%{box-shadow:0 0 0 8px rgba(251,191,36,0);} 100%{box-shadow:0 0 0 0 rgba(251,191,36,0);} }
+    .agents { display:grid; grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); gap:10px; }
+    .agent { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; position:relative; overflow:hidden; }
+    .agent.running { border-color: rgba(251,191,36,.5); box-shadow: inset 0 0 0 1px rgba(251,191,36,.15); }
+    .agent .top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .agent .name { font-weight:650; font-size:13px; }
+    .badge { font-size:10px; text-transform:uppercase; letter-spacing:.4px; padding:2px 7px; border-radius:999px; border:1px solid var(--border); }
+    .badge.idle { color:var(--muted); background:#0c1428; }
+    .badge.running { color:#1a1200; background:var(--warn); border-color:var(--warn); }
+    .badge.ready { color:#05130d; background:var(--ok); border-color:var(--ok); }
+    .badge.needs_setup { color:#1a1200; background:var(--warn); border-color:var(--warn); }
+    .badge.blocked { color:#1a0007; background:var(--bad); border-color:var(--bad); }
+    .issues { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.45; }
+    .issues .err { color:var(--bad); }
+    .issues .warn { color:var(--warn); }
+    .issues ul { margin:4px 0 0; padding-left:16px; }
+    .agent details summary { cursor:pointer; font-size:11px; color:var(--muted); margin-top:6px; }
+    .agent .desc { font-size:12px; color:var(--muted); margin-top:5px; line-height:1.35; min-height:32px; }
+    .agent .meta { font-size:11px; color:#7f95be; margin-top:6px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .agent .active { margin-top:6px; font-size:11px; color:var(--warn); }
+    .btns { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+    button { background:var(--accent); color:#06101f; border:none; border-radius:8px; padding:7px 11px; font-weight:600; cursor:pointer; font-size:12px; }
+    button:hover { filter:brightness(1.08); }
+    button.secondary { background:#182544; color:var(--text); border:1px solid var(--border); }
+    button.warn { background:#2a2414; color:var(--warn); border:1px solid #4a3b16; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 4px; }
+    input, select, textarea { width:100%; background:#0a1224; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font:inherit; font-size:13px; }
+    textarea { min-height:64px; resize:vertical; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    @media (max-width:700px){ .split{ grid-template-columns:1fr; } }
+    .runs { display:flex; flex-direction:column; gap:8px; max-height: 360px; overflow:auto; }
+    .run { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; cursor:pointer; }
+    .run:hover { border-color:#35508f; }
+    .run.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(78,161,255,.2); }
+    .run .top { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    .status { font-size:10px; padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
+    .status.completed { background:rgba(52,211,153,.15); color:var(--ok); }
+    .status.failed { background:rgba(251,113,133,.15); color:var(--bad); }
+    .status.running,.status.queued { background:rgba(251,191,36,.15); color:var(--warn); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12px; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#081021; border:1px solid var(--border); border-radius:8px; padding:10px; max-height:420px; overflow:auto; margin:6px 0 0; }
+    .muted { color:var(--muted); font-size:12px; }
+    .steps { display:flex; flex-direction:column; gap:8px; }
+    .step { border:1px solid var(--border); border-radius:8px; padding:8px; background:#0b1326; }
+    .step .head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .log { margin-top:6px; font-size:12px; white-space:pre-wrap; word-break:break-word; color:#d7e4ff; background:#070d1b; border:1px solid #162544; border-radius:6px; padding:8px; max-height:220px; overflow:auto; }
+    .bar { height:3px; background:#12203d; border-radius:99px; overflow:hidden; margin-top:8px; }
+    .bar > i { display:block; height:100%; width:35%; background:linear-gradient(90deg,var(--accent),var(--accent2)); animation:slide 1.1s infinite linear; }
+    @keyframes slide { 0%{transform:translateX(-120%);} 100%{transform:translateX(320%);} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AutoTrading Ideal Platform — Agent Orchestrator</h1>
+    <div class="sub">Standalone admin automaton · eagent automata (15) · live coordination, states & reports · paywall/settle/fund (admin, 0-funding fail-closed) · local execution with run feedback</div>
+  </header>
+  <div class="wrap">
+    <div class="row" style="margin-bottom:12px;">
+      <span id="healthPill" class="pill"><span class="dot"></span><span id="healthText">Checking…</span></span>
+      <span id="countPill" class="pill">Agents: —</span>
+      <span id="activePill" class="pill">Active: 0</span>
+      <span id="adminPill" class="pill">Admin: —</span>
+      <button class="secondary" onclick="refreshAll()">Refresh</button>
+      <button class="warn" onclick="probeAll()">Probe all agents</button>
+      <span class="muted">Runs auto-refresh; selected running run streams live. Every eagent reports to admin.</span>
+    </div>
+
+    <div class="card" style="margin-bottom:14px; border-color:#2a3f70; background:linear-gradient(180deg,#101a33,#0f1629);">
+      <h2><span>Primary Initiative / Autorun</span><span class="muted">Admin plans and executes autonomously with live feedback</span></h2>
+      <label>Goal / directive (admin will create a plan, route to eagents, and execute)</label>
+      <textarea id="initiativeGoal" placeholder="e.g. Do trading from 0 funding (no capital) — find and run paper/demo/backtest/simulation paths">Do trading from 0 funding (no capital): discover paper/demo/backtest/simulation modes across trading subplatforms and produce an executable bootstrap plan.</textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="autorunBtn" onclick="startInitiative()">Start Autorun Initiative</button>
+        <button class="secondary" onclick="presetZero()">Preset: Trading from 0 funding</button>
+        <span id="initiativeMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <h2><span>Workflow catalogue (20 agentic patterns)</span><span class="muted" id="wfInfo">Loading…</span></h2>
+      <div class="split">
+        <div>
+          <label>Workflow pattern</label>
+          <select id="wfSelect" onchange="renderWorkflowDetail()"></select>
+        </div>
+        <div>
+          <label>Mode</label>
+          <select id="wfMode">
+            <option value="plan">plan — DAG + gate decisions</option>
+            <option value="attest">attest — create/complete workers per open stage</option>
+          </select>
+        </div>
+      </div>
+      <label>Goal (selects the pattern when set to auto; recorded on the run)</label>
+      <textarea id="wfGoal" placeholder="e.g. audit the trading policy for legal risk"></textarea>
+      <div class="split">
+        <div>
+          <label>Compartment hints (optional; comma-separated keys)</label>
+          <input id="wfHints" placeholder="e.g. science_research, politics_governance" />
+        </div>
+        <div>
+          <label>Necessity threshold</label>
+          <input id="wfThreshold" type="number" value="2" min="0" step="0.5" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button id="wfBtn" onclick="runWorkflow()">Build / attest run</button>
+        <button class="secondary" onclick="previewDecision()">Preview decision</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--muted);font-size:12px;">
+          <input id="wfAchieved" type="checkbox" style="width:auto;" /> achievement attested
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--muted);font-size:12px;">
+          <input id="wfReplicate" type="checkbox" checked style="width:auto;" /> allow cascade
+        </label>
+        <span id="wfMsg" class="muted"></span>
+      </div>
+      <div class="muted" style="margin-top:8px;">Fail-closed: no attestation → no replication; a closed gate skips downstream stages; only compartments above the necessity threshold spawn; the first failed spawn halts the cascade. No model calls, shell, settlement, or funding.</div>
+      <div id="wfDecision" class="steps" style="margin-top:10px;"></div>
+      <div id="wfDetail" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <h2><span>Agent architecture (6 layers)</span><span class="muted" id="archInfo">Loading…</span></h2>
+      <div id="archLayers"></div>
+      <div class="split" style="margin-top:10px;">
+        <div>
+          <div class="muted" style="margin-bottom:6px;">Production layer</div>
+          <div id="archProduction"></div>
+        </div>
+        <div>
+          <div class="muted" style="margin-bottom:6px;">Honest gaps</div>
+          <div id="archGaps"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="muted" style="margin-bottom:6px;">Subplatform environments (agents operate here)</div>
+        <div id="archEnvs"></div>
+      </div>
+      <div class="muted" style="margin-top:10px;">Vendor names are orientation only — nothing here depends on them; gaps are listed rather than smoothed over.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <h2><span>eAgents (15 subplatforms)</span><span class="muted" id="agentHint">Click Probe/Dispatch on an agent</span></h2>
+      <div id="agents" class="agents"><div class="muted">Loading agents…</div></div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>Dispatch / Run task</h2>
+        <label>Task</label>
+        <textarea id="task" placeholder="Describe the task (used for routing if target is empty)"></textarea>
+        <div class="split">
+          <div>
+            <label>Target eagent</label>
+            <select id="target"><option value="">(auto-route by task)</option></select>
+          </div>
+          <div>
+            <label>Timeout (s)</label>
+            <input id="timeout" type="number" value="120" min="1" />
+          </div>
+        </div>
+        <label>Command (optional, runs in component dir via PowerShell)</label>
+        <input id="command" placeholder="e.g. Get-ChildItem | Select-Object -First 20 Name,Mode" />
+        <label>Working directory (optional, relative to platform root)</label>
+        <input id="cwd" placeholder="e.g. Pix-Payment-System-main/python" />
+        <div class="row" style="margin-top:10px;">
+          <button id="submitBtn" onclick="submitTask()">Run / Dispatch</button>
+          <button class="secondary" onclick="fillProbe()">Fill probe command</button>
+          <span id="submitMsg" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span>Runs</span><span class="muted" id="runsInfo"></span></h2>
+        <div id="runs" class="runs"><div class="muted">Loading…</div></div>
+      </div>
+    </div>
+
+    <div class="card" id="detailCard" style="margin-top:14px; display:none;">
+      <h2><span>Live run proceedings</span><span id="detailStatus" class="status"></span></h2>
+      <div id="detailMeta" class="muted"></div>
+      <div id="detailBar" class="bar" style="display:none;"><i></i></div>
+      <div id="detailSteps" class="steps" style="margin-top:10px;"></div>
+      <details style="margin-top:10px;"><summary class="muted">Raw run JSON</summary><pre id="runDetail" class="mono"></pre></details>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2><span>System / observability</span><span class="muted">control plane automated from boot; component execution is readiness-gated</span></h2>
+      <div class="row">
+        <span id="obsPill" class="pill">Watchdog: —</span>
+        <span id="skillsPill" class="pill">Skills: —</span>
+        <span id="geoPill" class="pill">Map: —</span>
+        <span id="bootPill" class="pill">Bootup: —</span>
+        <button class="secondary" onclick="runWatchdog()">Run watchdog</button>
+        <span id="systemMsg" class="muted"></span>
+      </div>
+      <div id="alertsBox" class="steps" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2><span>Subplatform readiness</span><span class="muted" id="readinessInfo">Checking…</span></h2>
+      <div class="muted" style="margin-bottom:8px;">Static checks only — manifests, toolchains, installed dependencies, submodules. Nothing is installed or executed automatically.</div>
+      <div id="readiness" class="agents"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
+
+<script>
+let selectedRunId = null;
+let detailTimer = null;
+
+async function j(url, opts) {
+  const r = await fetch(url, opts);
+  const t = await r.text();
+  try { return { ok: r.ok, status: r.status, data: JSON.parse(t) }; }
+  catch(e){ return { ok: r.ok, status: r.status, data: t }; }
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+async function loadHealth(){
+  const res = await j('/health');
+  const pill = document.getElementById('healthPill');
+  const txt = document.getElementById('healthText');
+  if(res.ok && res.data && res.data.status==='ok'){ pill.className='pill ok'; txt.textContent='Orchestrator online'; }
+  else { pill.className='pill bad'; txt.textContent='Orchestrator offline'; }
+}
+
+function agentCard(a){
+  const running = a.state === 'running' || a.automaton_state === 'running' || a.automaton_state === 'waking';
+  const astate = a.automaton_state || a.state || 'idle';
+  const active = a.active ? `Run ${esc(a.active.run_id)}: ${esc((a.active.task||'').slice(0,60))}` : '';
+  const lr = a.last_report && a.last_report.timestamp ? ` · last report ${esc(String(a.last_report.timestamp).replace('T',' ').slice(11,19))}` : '';
+  return `<div class="agent ${running?'running':''}">
+    <div class="top"><div class="name">${esc(a.name)}</div><span class="badge ${running?'running':'idle'}">${esc(astate)}</span></div>
+    <div class="desc">${esc(a.description||'')}</div>
+    <div class="meta">${esc(a.component||'')} · reports→${esc(a.reports_to||'admin')}</div>
+    ${active?`<div class="active">● ${active}${lr}</div>`:(lr?`<div class="muted" style="margin-top:6px;font-size:11px;">${lr.slice(3)}</div>`:'')}
+    <div class="btns">
+      <button class="secondary" onclick="quickProbe('${esc(a.name)}')">Probe</button>
+      <button onclick="setTarget('${esc(a.name)}')">Dispatch…</button>
+    </div>
+  </div>`;
+}
+
+async function loadAgents(){
+  const res = await j('/agents');
+  const box = document.getElementById('agents');
+  const sel = document.getElementById('target');
+  const count = document.getElementById('countPill');
+  const activePill = document.getElementById('activePill');
+  const adminPill = document.getElementById('adminPill');
+  if(!res.ok){ box.innerHTML='<div class="muted">Failed to load agents.</div>'; return; }
+  const agents = res.data.agents || [];
+  const activeCount = agents.filter(a=>a.state==='running' || a.automaton_state==='running' || a.automaton_state==='waking').length;
+  count.textContent = 'Agents: ' + agents.length;
+  activePill.textContent = 'Active: ' + activeCount;
+  activePill.className = 'pill ' + (activeCount ? 'runstate' : '');
+  if(res.data.admin){
+    const adm = res.data.admin;
+    const ov = adm.overlay ? `/${adm.overlay}` : '';
+    adminPill.textContent = 'Admin: ' + (adm.state||'idle') + ov;
+    adminPill.title = 'authority: ' + ((adm.authority||[]).join(', ') || '—') + ' · reports→operator_audit';
+  } else { adminPill.textContent = 'Admin: —'; }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">(auto-route by task)</option>' + agents.map(a=>`<option value="${esc(a.name)}">${esc(a.name)}</option>`).join('');
+  if(cur) sel.value = cur;
+  box.innerHTML = agents.map(agentCard).join('');
+  window._agents = agents;
+  window._admin = res.data.admin;
+  window._model = res.data.model;
+}
+
+function renderRuns(runs){
+  const box = document.getElementById('runs');
+  document.getElementById('runsInfo').textContent = runs ? (runs.length + ' recent') : '';
+  if(!runs || !runs.length){ box.innerHTML='<div class="muted">No runs yet. Dispatch a task or probe an agent.</div>'; return; }
+  box.innerHTML = runs.map(r=>`
+    <div class="run ${r.id===selectedRunId?'sel':''}" onclick="selectRun('${esc(r.id)}')">
+      <div class="top"><div class="mono">${esc(r.id)}</div><span class="status ${esc(r.status||'')}">${esc(r.status||'')}</span></div>
+      <div style="margin-top:4px; font-size:13px;">${esc((r.task||'(no task)')).slice(0,120)}</div>
+      <div class="muted" style="margin-top:4px;">${esc((r.targets||[]).join(', ')||'—')} · ${esc((r.updated_at||'').replace('T',' ').slice(0,19))}</div>
+    </div>`).join('');
+}
+
+async function loadRuns(){
+  const res = await j('/runs');
+  if(!res.ok){ document.getElementById('runs').innerHTML='<div class="muted">Failed to load runs.</div>'; return; }
+  renderRuns(res.data.runs || []);
+  // if selected run is running, keep detail fresh via its timer; otherwise refresh detail once if selected
+  if(selectedRunId){
+    const r = (res.data.runs||[]).find(x=>x.id===selectedRunId);
+    if(r && (r.status==='completed' || r.status==='failed')) loadRunDetail(selectedRunId, false);
+  }
+}
+
+function outText(step){
+  const o = step.output;
+  if(o==null) return '';
+  if(typeof o === 'string') return o;
+  try { return JSON.stringify(o, null, 2); } catch(e){ return String(o); }
+}
+
+function renderDetail(run){
+  const card = document.getElementById('detailCard');
+  const status = document.getElementById('detailStatus');
+  const meta = document.getElementById('detailMeta');
+  const stepsBox = document.getElementById('detailSteps');
+  const bar = document.getElementById('detailBar');
+  card.style.display='block';
+  status.className = 'status ' + esc(run.status||'');
+  status.textContent = esc(run.status||'');
+  const mode = run.mode || (run.meta && run.meta.mode) || '';
+  const rcount = (run.reports||[]).length;
+  meta.textContent = `Run ${run.id} · ${mode?('mode '+mode+' · '):''}targets: ${(run.targets||[]).join(', ')||'—'} · reports: ${rcount} · task: ${run.task||''}`;
+  const live = (run.status==='running' || run.status==='queued');
+  bar.style.display = live ? 'block' : 'none';
+  const steps = run.steps || [];
+  let reportsHtml = '';
+  if(rcount){
+    const rlines = (run.reports||[]).slice(-30).map(r=>{
+      const st = r.state ? `${esc(r.state.from||'')}→${esc(r.state.to||'')}` : '';
+      return `<div class="step" style="padding:6px 8px;">
+        <div class="head"><div><strong>${esc(r.agent||'agent')}</strong> <span class="muted">reports→${esc(r.reports_to||'admin')}</span></div><span class="muted mono">${st}</span></div>
+        ${r.message?`<div class="muted" style="margin-top:4px;">${esc(r.message)}</div>`:''}
+      </div>`;
+    }).join('');
+    reportsHtml = `<div style="margin-top:10px;"><div class="muted" style="margin-bottom:6px;">Reports (automaton, to admin/operator)</div><div class="steps">${rlines}</div></div>`;
+  }
+  if(!steps.length){ stepsBox.innerHTML = '<div class="muted">Waiting for steps…</div>' + reportsHtml; }
+  else {
+    stepsBox.innerHTML = steps.map(s=>{
+      const log = outText(s);
+      const title = s.title ? `<div class="muted" style="margin-top:2px;">${esc(s.title)}</div>` : '';
+      return `<div class="step">
+        <div class="head"><div><strong>${esc(s.subplatform||s.eagent||'step')}</strong> <span class="muted mono">${esc(s.component||'')}</span>${title}</div><span class="status ${esc(s.status||'')}">${esc(s.status||'')}</span></div>
+        ${s.error?`<div class="muted" style="color:var(--bad);margin-top:4px;">${esc(s.error)}</div>`:''}
+        ${log?`<div class="log mono">${esc(log)}</div>`:'<div class="muted" style="margin-top:6px;">No output yet.</div>'}
+      </div>`;
+    }).join('') + reportsHtml;
+  }
+  document.getElementById('runDetail').textContent = JSON.stringify(run, null, 2);
+  // keep live polling while running
+  if(detailTimer){ clearTimeout(detailTimer); detailTimer=null; }
+  if(live){ detailTimer = setTimeout(()=>loadRunDetail(run.id, true), 1000); }
+}
+
+async function loadRunDetail(id, silent){
+  const res = await j('/runs/' + encodeURIComponent(id));
+  if(!res.ok) return;
+  renderDetail(res.data);
+}
+
+function selectRun(id){ selectedRunId = id; loadRuns(); loadRunDetail(id, false); }
+
+function setTarget(name){
+  document.getElementById('target').value = name;
+  document.getElementById('task').focus();
+  document.getElementById('submitMsg').textContent = 'Target set to ' + name;
+}
+function fillProbe(){
+  if(!document.getElementById('command').value)
+    document.getElementById('command').value = 'Get-ChildItem | Select-Object -First 15 Name,Mode,Length';
+  if(!document.getElementById('task').value)
+    document.getElementById('task').value = 'Probe component and report status';
+}
+
+async function dispatch(payload, msgEl){
+  const res = await j('/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  if(res.ok && res.data && res.data.id){
+    if(msgEl) msgEl.textContent = 'Run ' + res.data.id + ' (' + res.data.status + ')';
+    await loadAgents(); await loadRuns();
+    selectRun(res.data.id);
+  } else {
+    if(msgEl) msgEl.textContent = 'Error: ' + (res.data && res.data.error ? res.data.error : res.status);
+  }
+  return res;
+}
+
+async function quickProbe(name){
+  await dispatch({ task: 'Probe agent/component status', target: name, command: 'Get-ChildItem | Select-Object -First 20 Name,Mode', timeout: 60 }, document.getElementById('submitMsg'));
+}
+
+async function probeAll(){
+  const agents = window._agents || [];
+  const msg = document.getElementById('submitMsg');
+  msg.textContent = 'Probing all agents…';
+  for(const a of agents){
+    // fire sequentially to avoid flooding; each returns quickly (async run created)
+    await j('/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({task:'Probe agent', target:a.name, command:'Get-ChildItem | Select-Object -First 10 Name,Mode', timeout:60})});
+  }
+  msg.textContent = 'Probe dispatched to all ' + agents.length + ' agents.';
+  await loadAgents(); await loadRuns();
+}
+
+function presetZero(){
+  document.getElementById('initiativeGoal').value = 'Do trading from 0 funding (no capital): discover paper/demo/backtest/simulation/testnet/dry-run modes across trading subplatforms, identify free enablers (LLM/data), and produce an executable bootstrap directive.';
+}
+
+async function startInitiative(){
+  const btn = document.getElementById('autorunBtn');
+  const msg = document.getElementById('initiativeMsg');
+  const goal = document.getElementById('initiativeGoal').value.trim();
+  if(!goal){ msg.textContent='Enter a goal/directive.'; return; }
+  btn.disabled=true; msg.textContent='Planning and starting autorun…';
+  try{
+    await dispatch({ task: goal, autorun: true, timeout: 180 }, msg);
+  } catch(e){ msg.textContent='Request failed.'; }
+  finally{ btn.disabled=false; }
+}
+
+async function submitTask(){
+  const btn = document.getElementById('submitBtn');
+  const msg = document.getElementById('submitMsg');
+  const payload = {
+    task: document.getElementById('task').value.trim(),
+    target: document.getElementById('target').value || undefined,
+    command: document.getElementById('command').value.trim() || undefined,
+    cwd: document.getElementById('cwd').value.trim() || undefined,
+    timeout: parseInt(document.getElementById('timeout').value || '120', 10) || 120
+  };
+  if(!payload.task && !payload.command){ msg.textContent='Provide a task or a command.'; return; }
+  btn.disabled=true; msg.textContent='Dispatching…';
+  try{ await dispatch(payload, msg); }
+  catch(e){ msg.textContent='Request failed.'; }
+  finally{ btn.disabled=false; }
+}
+
+let wfCatalogue = null;
+
+async function loadArchitecture(){
+  const res = await j('/stack');
+  const info = document.getElementById('archInfo');
+  if(!res.ok){ info.textContent = 'unavailable'; return; }
+  const snap = res.data;
+  const layersEl = document.getElementById('archLayers');
+  const prodEl = document.getElementById('archProduction');
+  const gapsEl = document.getElementById('archGaps');
+  layersEl.innerHTML = (snap.layers||[]).map(l=>`
+    <div class="agent" style="padding:8px;">
+      <div class="top"><div class="name">${esc(l.order)}. ${esc(l.name)}</div><span class="badge ${esc(l.status)}">${esc(l.status)}</span></div>
+      <div class="muted">${esc(l.purpose)}</div>
+      ${l.status === 'realized'
+        ? `<div class="muted" style="margin-top:4px;">Realized: ${esc((l.ours||[]).filter(o=>o.exists).map(o=>o.path).join(', ')||'modules present')}</div>`
+        : `<div class="muted" style="margin-top:4px;">${esc(l.gap||'')}</div>`}
+    </div>`).join('');
+  prodEl.innerHTML = (snap.production||[]).map(c=>`
+    <div class="step" style="padding:6px 8px; margin-bottom:4px;">
+      <div class="head"><div><strong>${esc(c.concern)}</strong></div><span class="badge ${esc(c.status)}">${esc(c.status)}</span></div>
+      <div class="muted">${esc(c.gate)}</div>
+    </div>`).join('');
+  gapsEl.innerHTML = (snap.gaps||[]).map(g=>`
+    <div class="step" style="padding:6px 8px; margin-bottom:4px;">
+      <span class="badge blocked">gap</span> <span class="muted">${esc(g.layer)}</span>
+      <div class="muted">${esc(g.gap)}</div>
+    </div>`).join('');
+  const envsEl = document.getElementById('archEnvs');
+  envsEl.innerHTML = (snap.environments||[]).map(e=>`
+    <div class="agent" style="padding:8px;">
+      <div class="top"><div class="name">${esc(e.name)}</div><span class="badge ${esc(e.runtime_status === 'unknown' ? 'idle' : e.runtime_status)}">${esc(e.runtime_status || 'unknown')}</span></div>
+      <div class="muted" style="margin-top:4px;">${esc(e.posture)}</div>
+      <div class="muted">Scope: ${esc(e.scope)}</div>
+      ${e.spec && e.spec.services && e.spec.services.length
+        ? `<div class="muted">Services: ${esc(e.spec.services.join(', '))}</div>`
+        : ''}
+    </div>`).join('');
+  const dps = snap.data_products || [];
+  info.textContent = `${(snap.layers||[]).length} layers · ${(snap.environments||[]).length} environments · agent loop ${(snap.agent_loop||[]).length} steps · ${dps.filter(p=>p.governed).length}/${dps.length} data products governed · governance: ${esc((snap.governance||{}).lineage?.status || 'n/a')} lineage`;
+}
+
+async function loadWorkflows(){
+  const res = await j('/workflows');
+  const sel = document.getElementById('wfSelect');
+  const info = document.getElementById('wfInfo');
+  if(!res.ok){ info.textContent = 'catalogue unavailable'; return; }
+  wfCatalogue = res.data;
+  const cur = sel.value;
+  const items = res.data.workflows || [];
+  sel.innerHTML = '<option value="">auto — select by goal</option>' + items.map(w =>
+    `<option value="${esc(w.slug)}">${String(w.id).padStart(2,'0')} · ${esc(w.name)} [${esc(w.readiness)}]</option>`).join('');
+  if(cur) sel.value = cur;
+  const counts = { ready:0, needs_setup:0, blocked:0 };
+  items.forEach(w => { counts[w.readiness] = (counts[w.readiness]||0) + 1; });
+  info.textContent = `${res.data.count} patterns · ${counts.ready} ready · ${counts.needs_setup} need setup · ${counts.blocked} blocked`;
+  if(!sel.value) renderWorkflowDetail();
+}
+
+async function renderWorkflowDetail(){
+  const box = document.getElementById('wfDetail');
+  if(!wfCatalogue){ box.innerHTML=''; return; }
+  const slug = document.getElementById('wfSelect').value;
+  let wf;
+  if(slug){
+    const r = await j('/workflows/' + encodeURIComponent(slug));
+    if(!r.ok){ box.innerHTML='<div class="muted">Workflow not found.</div>'; return; }
+    wf = r.data;
+  } else {
+    wf = (wfCatalogue.workflows||[]).find(w=>w.slug==='plan-and-execute');
+  }
+  if(!wf){ box.innerHTML=''; return; }
+  const stages = (wf.stages||[]).map(s=>{
+    const comps = (s.components||[]).map(c=>{
+      const st = c.live_status || c.declared_status;
+      return `<span class="badge ${esc(st)}">${esc(c.name)}${c.live_status?': '+esc(c.live_status):''}</span>`;
+    }).join(' ');
+    return `<div class="step" style="padding:6px 8px;">
+      <div class="head"><div><strong>${esc(s.label)}</strong>${s.gate?' <span class="badge needs_setup">gate</span>':''}</div><span class="muted mono">${esc(s.key)}</span></div>
+      <div class="row" style="margin-top:6px;">${comps}</div>
+    </div>`;
+  }).join('');
+  const comps = (wfCatalogue.compartments||[]).map(c=>`<div class="agent" style="padding:8px;">
+      <div class="top"><div class="name">${c.order}. ${esc(c.name)}</div><span class="badge idle">decided per run</span></div>
+      <div class="muted" style="margin-top:6px;">Remit: ${esc((c.remit||[]).slice(0,6).join(', '))}…</div>
+      <div class="muted">If necessary → ${esc(c.short)} ${esc(wf.department_kind)} Dept / ${esc(c.short)} ${esc(wf.admin_kind)} Admin</div>
+    </div>`).join('');
+  box.innerHTML = `
+    <div class="row" style="margin-bottom:8px;">
+      <span class="badge ${esc(wf.readiness)}">${esc(wf.readiness)}</span>
+      <span class="muted">${esc(wf.description)}</span>
+    </div>
+    <div class="muted" style="margin-bottom:6px;">Achievement attested at: ${esc(wf.achievement_point)} · compartment-agnostic (${esc(wf.department_kind)} / ${esc(wf.admin_kind)})</div>
+    <div class="steps">${stages}</div>
+    <div class="muted" style="margin:10px 0 6px;">Compartments (topology only — occupants decided by necessity, not assignment)</div>
+    <div class="agents">${comps}</div>`;
+}
+
+function hintsValue(){
+  return document.getElementById('wfHints').value.split(',').map(s=>s.trim()).filter(Boolean);
+}
+
+function renderDecision(decision){
+  const box = document.getElementById('wfDecision');
+  if(!decision || !decision.candidates){ box.innerHTML=''; return; }
+  const rows = decision.candidates.map(c=>`
+    <div class="step" style="padding:6px 8px; ${c.selected?'border-color:var(--accent);':''}">
+      <div class="head">
+        <div><strong>${c.order}. ${esc(c.compartment)}</strong> <span class="muted">→ ${esc(c.department)} / ${esc(c.admin)}</span></div>
+        <span class="badge ${c.selected?'ready':'idle'}">${c.selected?'SELECTED':'not necessary'} · ${c.score}</span>
+      </div>
+      <div class="muted" style="margin-top:4px;">${esc((c.rationale||[]).join(' · '))}</div>
+    </div>`).join('');
+  box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Decision (${esc(decision.decider)} · threshold ${decision.threshold}): ${esc(decision.selected_compartments.join(', ')||'none')}${decision.reason?' — '+esc(decision.reason):''}</div>${rows}`;
+}
+
+async function previewDecision(){
+  const msg = document.getElementById('wfMsg');
+  const goal = document.getElementById('wfGoal').value.trim();
+  if(!goal){ msg.textContent = 'Enter a goal.'; return; }
+  msg.textContent = 'Deciding…';
+  const payload = {
+    goal,
+    compartments: hintsValue(),
+    threshold: parseFloat(document.getElementById('wfThreshold').value || '2')
+  };
+  const slug = document.getElementById('wfSelect').value;
+  if(slug) payload.workflow = slug;
+  try{
+    const res = await j('/workflows/decide', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(res.ok && res.data){
+      renderDecision(res.data);
+      msg.textContent = `${res.data.selected_compartments.length} compartment(s) selected`;
+    } else { msg.textContent = 'Error: ' + (res.data && res.data.error ? res.data.error : res.status); }
+  } catch(e){ msg.textContent = 'Request failed.'; }
+}
+
+async function runWorkflow(){
+  const btn = document.getElementById('wfBtn');
+  const msg = document.getElementById('wfMsg');
+  const goal = document.getElementById('wfGoal').value.trim();
+  if(!goal){ msg.textContent = 'Enter a goal.'; return; }
+  btn.disabled = true; msg.textContent = 'Building…';
+  const payload = {
+    goal,
+    mode: document.getElementById('wfMode').value,
+    achieved: document.getElementById('wfAchieved').checked,
+    replicate: document.getElementById('wfReplicate').checked,
+    max_replicas: 5,
+    compartments: hintsValue(),
+    threshold: parseFloat(document.getElementById('wfThreshold').value || '2')
+  };
+  const slug = document.getElementById('wfSelect').value;
+  if(slug) payload.workflow = slug;
+  try{
+    const res = await j('/workflows/execute', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(res.ok && res.data && res.data.id){
+      const r = res.data.result || {};
+      msg.textContent = `Run ${res.data.id} (${res.data.status}) · ${r.stages_completed||0}/${r.stages_total||0} stages · cascade ${r.cascade_state||'—'} · ${r.replicas_spawned||0} replicas${r.cascade_halt_reason?' · '+r.cascade_halt_reason:''}`;
+      renderDecision(r.decision);
+      await loadRuns(); selectRun(res.data.id); await loadWorkflows();
+    } else {
+      msg.textContent = 'Error: ' + (res.data && res.data.error ? res.data.error : res.status);
+    }
+  } catch(e){ msg.textContent = 'Request failed.'; }
+  finally{ btn.disabled = false; }
+}
+
+async function refreshAll(){ await Promise.all([loadHealth(), loadAgents(), loadRuns(), loadReadiness(), loadSystem(), loadArchitecture(), loadWorkflows()]); }
+
+function readinessCard(c){
+  const status = c.status || 'blocked';
+  const langs = (c.languages || []).join('+') || '—';
+  const errs = (c.errors || []).map(e=>`<li class="err">${esc(e)}</li>`).join('');
+  const warns = (c.warnings || []).map(w=>`<li class="warn">${esc(w)}</li>`).join('');
+  const steps = (c.next_steps || []).map(s=>`<li>${esc(s)}</li>`).join('');
+  const detail = (errs || warns || steps)
+    ? `<details><summary>${c.errors.length ? c.errors.length + ' blocker(s)' : c.warnings.length + ' note(s)'}</summary>
+         <div class="issues"><ul>${errs}${warns}${steps}</ul></div>
+       </details>`
+    : '';
+  return `<div class="agent">
+    <div class="top"><div class="name">${esc(c.name)}</div><span class="badge ${esc(status)}">${esc(status.replace('_',' '))}</span></div>
+    <div class="meta">${esc(langs)} · deps ${c.deps_installed===true?'installed':(c.deps_installed===false?'missing':'unknown')}</div>
+    ${detail}
+  </div>`;
+}
+
+async function loadReadiness(){
+  const res = await j('/components');
+  const box = document.getElementById('readiness');
+  const info = document.getElementById('readinessInfo');
+  if(!res.ok){ box.innerHTML='<div class="muted">Failed to load readiness.</div>'; return; }
+  const s = res.data.summary || {};
+  info.textContent = `${s.ready||0} ready · ${s.needs_setup||0} need setup · ${s.blocked||0} blocked`;
+  const comps = res.data.components || [];
+  box.innerHTML = comps.length ? comps.map(readinessCard).join('') : '<div class="muted">No components.</div>';
+}
+
+async function loadSystem(){
+  const [obs, sk, g, boot] = await Promise.all([j('/observability'), j('/skills'), j('/geo/overview'), j('/bootup')]);
+  const obsPill = document.getElementById('obsPill');
+  const skillsPill = document.getElementById('skillsPill');
+  const geoPill = document.getElementById('geoPill');
+  if(obs.ok && obs.data){
+    const total = obs.data.alerts_total || 0;
+    obsPill.textContent = 'Watchdog: ' + (obs.data.status || 'unknown') + (total ? ` · ${total} alert(s)` : ' · clear');
+    obsPill.className = 'pill ' + (total ? 'bad' : 'ok');
+  } else { obsPill.textContent = 'Watchdog: unavailable'; obsPill.className = 'pill bad'; }
+  if(sk.ok && sk.data){ skillsPill.textContent = 'Skills: ' + (sk.data.count || 0); }
+  if(g.ok && g.data){
+    const c = g.data.counts || {};
+    geoPill.textContent = `Map: ${c.places||0} places · ${c.work_items||0} work · ${c.routes||0} routes`;
+  }
+  const bootPill = document.getElementById('bootPill');
+  if(boot.ok && boot.data && boot.data.ok){
+    const a = boot.data.automation || {};
+    bootPill.textContent = 'Control plane: automated · execution: readiness-gated';
+    bootPill.className = 'pill ok';
+    bootPill.title = (a.claim || '') + '\n' + (a.autonomous_from_boot || []).join('\n') + '\nNOT autonomous:\n' + (a.not_autonomous || []).join('\n');
+  } else { bootPill.textContent = 'Bootup: not run'; bootPill.className = 'pill bad'; }
+  const box = document.getElementById('alertsBox');
+  const alerts = (obs.ok && obs.data && obs.data.alerts) || [];
+  if(!alerts.length){ box.innerHTML = '<div class="muted">No active alerts.</div>'; return; }
+  box.innerHTML = alerts.slice(-12).map(a=>`
+    <div class="step" style="padding:6px 8px;">
+      <div class="head"><div><strong>${esc(a.severity||'info')}</strong> · ${esc(a.title||'')}</div><span class="muted mono">${esc(String(a.timestamp||'').replace('T',' ').slice(0,19))}</span></div>
+      <div class="muted" style="margin-top:4px;">${esc(a.detail||'')}</div>
+    </div>`).join('');
+}
+
+async function runWatchdog(){
+  const msg = document.getElementById('systemMsg');
+  msg.textContent = 'Running watchdog…';
+  const res = await j('/alerts/watchdog', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  msg.textContent = res.ok ? `Watchdog found ${((res.data||{}).alerts||[]).length} active alert(s).` : 'Watchdog failed.';
+  await loadSystem();
+}
+
+refreshAll();
+setInterval(()=>{ loadAgents(); loadRuns(); }, 3000);
+setInterval(()=>{ loadSystem(); loadReadiness(); }, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,443 @@
+// src/screens/equity_research/EquityNewsTab.cpp
+#include "screens/equity_research/EquityNewsTab.h"
+
+#include "core/events/EventBus.h"
+#include "services/equity/EquityResearchService.h"
+#include "services/news/NewsService.h"
+#include "ui/theme/Theme.h"
+
+#include <QDesktopServices>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QStandardItemModel>
+#include <QUrl>
+
+namespace fincept::screens {
+
+EquityNewsTab::EquityNewsTab(QWidget* parent) : QWidget(parent) {
+    build_ui();
+    auto& svc = services::equity::EquityResearchService::instance();
+    connect(&svc, &services::equity::EquityResearchService::news_loaded, this, &EquityNewsTab::on_news_loaded);
+    // Dismiss the "LOADING NEWS…" overlay on failure — it's hidden only on success.
+    // The overlay hides on failure, but the "Loading news…" status used to stay put —
+    // a blank tab claiming to still load. Say what happened and how to retry.
+    connect(&svc, &services::equity::EquityResearchService::load_failed, this,
+            [this](const services::equity::LoadFailure& f) {
+                if (f.leg != QLatin1String("News") || f.symbol != current_symbol_ || news_loaded_)
+                    return;
+                if (loading_overlay_)
+                    loading_overlay_->hide_loading();
+                if (status_label_) {
+                    status_label_->setText(tr("Could not load news for %1. Press REFRESH to try again.")
+                                               .arg(current_symbol_));
+                    status_label_->setToolTip(f.message); // the real reason
+                    status_label_->show();
+                }
+            });
+}
+
+void EquityNewsTab::set_symbol(const QString& symbol) {
+    if (symbol == current_symbol_)
+        return;
+    current_symbol_ = symbol;
+    news_loaded_ = false;
+    company_label_->setText(symbol);
+    refresh_provider_availability();
+    start_fetch();
+}
+
+// (Re)fetch the current symbol's news using the selected provider. Sole owner of
+// the news fetch — the screen no longer triggers it, so the dropdown is authoritative.
+void EquityNewsTab::start_fetch(bool force) {
+    if (current_symbol_.isEmpty())
+        return;
+    clear_cards();
+    news_loaded_ = false; // a REFRESH is a fresh load: its failure must reach the error handler
+    news_fell_back_ = false;
+    count_label_->setText("");
+    status_label_->setText(tr("Loading news…"));
+    status_label_->setToolTip(QString());
+    status_label_->show();
+    loading_overlay_->show_loading(tr("LOADING NEWS…"));
+    using NP = services::equity::NewsProvider;
+    services::equity::EquityResearchService::instance().fetch_news(current_symbol_, 20,
+                                                                   use_newsapi_ ? NP::NewsApi : NP::Auto, force);
+}
+
+// Enable the "NewsAPI" item only when a key is configured in Data Sources; if it
+// was selected but the key went away, fall back to Auto.
+void EquityNewsTab::refresh_provider_availability() {
+    if (!provider_combo_)
+        return;
+    const bool avail = !services::equity::EquityResearchService::instance().configured_newsapi_key().isEmpty();
+    if (auto* model = qobject_cast<QStandardItemModel*>(provider_combo_->model())) {
+        if (auto* item = model->item(1)) {
+            item->setEnabled(avail);
+            item->setToolTip(avail ? QString() : tr("Add a NewsAPI key in the Data Sources tab"));
+        }
+    }
+    if (!avail && use_newsapi_) {
+        use_newsapi_ = false;
+        suppress_provider_signal_ = true;
+        provider_combo_->setCurrentIndex(0);
+        suppress_provider_signal_ = false;
+    }
+}
+
+QString EquityNewsTab::provider_key() const {
+    return use_newsapi_ ? QStringLiteral("newsapi") : QStringLiteral("auto");
+}
+
+void EquityNewsTab::set_provider_key(const QString& key) {
+    use_newsapi_ = (key == QLatin1String("newsapi"));
+    if (provider_combo_) {
+        suppress_provider_signal_ = true;
+        provider_combo_->setCurrentIndex(use_newsapi_ ? 1 : 0);
+        suppress_provider_signal_ = false;
+    }
+}
+
+void EquityNewsTab::build_ui() {
+    setObjectName(QStringLiteral("equityNewsTab"));
+    // QWidget{} keeps the original all-children background; the named rules style the article cards that
+    // populate() builds — they used to get six setStyleSheet() calls each, per refresh.
+    setStyleSheet(
+        QString("QWidget { background:%1; }"
+                "QFrame#newsCard { background:%2; border:1px solid %3; }"
+                "QFrame#newsCard:hover { border-color:%4; background:%5; }"
+                "QLabel#newsTitle { color:%6; font-size:" + fincept::ui::fonts::px(-2) + "px; font-weight:700; background:transparent; border:0; }"
+                "QLabel#newsPublisher { color:%7; font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; background:transparent; border:0; }"
+                "QLabel#newsDate { color:%8; font-size:" + fincept::ui::fonts::px(-4) + "px; background:transparent; border:0; }"
+                "QLabel#newsDesc { color:%9; font-size:" + fincept::ui::fonts::px(-4) + "px; background:transparent; border:0; }"
+                "QLabel#newsRead { color:%4; font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; letter-spacing:1px;"
+                " background:transparent; border:0; }"
+                "QLabel#newsTone { font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; padding:1px 6px; border:1px solid %8;"
+                " color:%8; background:transparent; }"
+                "QLabel#newsTone[tone=\"bull\"] { color:%10; border-color:%10; }"
+                "QLabel#newsTone[tone=\"bear\"] { color:%11; border-color:%11; }"
+                "QLabel#newsToneSummary { font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; color:%9; background:transparent;"
+                " border:0; }")
+            .arg(ui::colors::BG_BASE(), ui::colors::BG_SURFACE(), ui::colors::BORDER_DIM(), ui::colors::AMBER(),
+                 ui::colors::BG_RAISED(), ui::colors::TEXT_PRIMARY(), ui::colors::CYAN(), ui::colors::TEXT_TERTIARY(),
+                 ui::colors::TEXT_SECONDARY())
+            .arg(ui::colors::POSITIVE(), ui::colors::NEGATIVE()));
+    loading_overlay_ = new ui::LoadingOverlay(this);
+    auto* vl = new QVBoxLayout(this);
+    vl->setContentsMargins(0, 0, 0, 0);
+    vl->setSpacing(0);
+
+    // ── Header bar ────────────────────────────────────────────────────────────
+    auto* hdr = new QWidget(this);
+    hdr->setStyleSheet(
+        QString("background:%1; border-bottom:2px solid %2;").arg(ui::colors::BG_SURFACE(), ui::colors::AMBER()));
+    auto* hl = new QHBoxLayout(hdr);
+    hl->setContentsMargins(14, 8, 14, 8);
+    hl->setSpacing(12);
+
+    title_lbl_ = new QLabel(tr("LATEST NEWS"));
+    title_lbl_->setStyleSheet(QString("color:%1; font-size:" + fincept::ui::fonts::px(-3) + "px; font-weight:700; letter-spacing:2px; "
+                                      "background:transparent; border:0;")
+                                  .arg(ui::colors::AMBER()));
+    hl->addWidget(title_lbl_);
+
+    count_label_ = new QLabel("");
+    count_label_->setStyleSheet(
+        QString("color:%1; font-size:" + fincept::ui::fonts::px(-4) + "px; background:transparent; border:0;").arg(ui::colors::TEXT_TERTIARY()));
+    hl->addWidget(count_label_);
+
+    company_label_ = new QLabel("");
+    company_label_->setStyleSheet(
+        QString("color:%1; font-size:" + fincept::ui::fonts::px(-4) + "px; background:transparent; border:0;").arg(ui::colors::CYAN()));
+    hl->addWidget(company_label_);
+
+    // Aggregate tone of the headlines on screen (same model as the Sentiment tab).
+    tone_label_ = new QLabel;
+    tone_label_->setObjectName(QStringLiteral("newsToneSummary"));
+    hl->addWidget(tone_label_);
+
+    hl->addStretch();
+
+    // The research tab shows one provider's company-news search; the News screen
+    // aggregates every RSS feed — hand the symbol over for the wider view.
+    open_news_btn_ = new QPushButton(tr("OPEN IN NEWS ↗"));
+    open_news_btn_->setCursor(Qt::PointingHandCursor);
+    open_news_btn_->setToolTip(tr("Filter the News screen (all feeds) by this symbol"));
+    open_news_btn_->setStyleSheet(
+        QString("QPushButton { background:transparent; color:%1; border:1px solid %2; "
+                "padding:4px 10px; font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; }"
+                "QPushButton:hover { border-color:%3; color:%3; }")
+            .arg(ui::colors::TEXT_SECONDARY(), ui::colors::BORDER_DIM(), ui::colors::AMBER()));
+    connect(open_news_btn_, &QPushButton::clicked, this, [this]() {
+        if (current_symbol_.isEmpty())
+            return;
+        EventBus::instance().publish("nav.open_symbol",
+                                     {{"screen_id", QStringLiteral("news")}, {"symbol", current_symbol_}});
+    });
+    hl->addWidget(open_news_btn_);
+
+    // ── Provider switch ─────────────────────────────────────────────────────────
+    // "NewsAPI" stays disabled until a key is configured in the Data Sources tab.
+    provider_combo_ = new QComboBox;
+    provider_combo_->addItem(tr("Auto (GNews → Yahoo)"));
+    provider_combo_->addItem(QStringLiteral("NewsAPI"));
+    provider_combo_->setToolTip(tr("News source"));
+    provider_combo_->setStyleSheet(
+        QString("QComboBox { background:%1; color:%2; border:1px solid %3; border-radius:3px; "
+                "padding:3px 8px; font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; }"
+                "QComboBox::drop-down { border:0; width:14px; }"
+                "QComboBox QAbstractItemView { background:%1; color:%2; border:1px solid %3; "
+                "selection-background-color:%4; selection-color:%5; }")
+            .arg(ui::colors::BG_SURFACE(), ui::colors::TEXT_SECONDARY(), ui::colors::BORDER_DIM(),
+                 ui::colors::BG_RAISED(), ui::colors::TEXT_PRIMARY()));
+    connect(provider_combo_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (suppress_provider_signal_)
+            return;
+        use_newsapi_ = (idx == 1);
+        start_fetch();
+    });
+    hl->addWidget(provider_combo_);
+
+    refresh_btn_ = new QPushButton(tr("REFRESH"));
+    refresh_btn_->setStyleSheet(QString("QPushButton { background:transparent; color:%1; border:1px solid %2; "
+                                        "border-radius:3px; padding:4px 12px; font-size:" + fincept::ui::fonts::px(-4) + "px; font-weight:700; }"
+                                        "QPushButton:hover { border-color:%3; color:%3; }")
+                                    .arg(ui::colors::TEXT_SECONDARY(), ui::colors::BORDER_DIM(), ui::colors::AMBER()));
+    connect(refresh_btn_, &QPushButton::clicked, this, [this]() { start_fetch(/*force=*/true); });
+    hl->addWidget(refresh_btn_);
+    vl->addWidget(hdr);
+
+    refresh_provider_availability(); // set the initial enabled state of the NewsAPI item
+
+    // ── Status label ──────────────────────────────────────────────────────────
+    status_label_ = new QLabel(tr("Search for a symbol to load news."));
+    status_label_->setAlignment(Qt::AlignCenter);
+    status_label_->setStyleSheet(
+        QString("color:%1; font-size:" + fincept::ui::fonts::px(-2) + "px; padding:20px; background:transparent;").arg(ui::colors::TEXT_SECONDARY()));
+    vl->addWidget(status_label_);
+
+    // ── Scrollable card list ──────────────────────────────────────────────────
+    auto* scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setStyleSheet("background:transparent; border:0;");
+
+    cards_container_ = new QWidget(this);
+    cards_layout_ = new QVBoxLayout(cards_container_);
+    cards_layout_->setContentsMargins(12, 12, 12, 12);
+    cards_layout_->setSpacing(10);
+    cards_layout_->addStretch();
+
+    scroll->setWidget(cards_container_);
+    vl->addWidget(scroll, 1);
+}
+
+void EquityNewsTab::clear_cards() {
+    while (cards_layout_->count() > 1) {
+        auto* item = cards_layout_->takeAt(0);
+        if (item->widget())
+            item->widget()->deleteLater();
+        delete item;
+    }
+}
+
+void EquityNewsTab::populate(const QVector<services::equity::NewsArticle>& articles) {
+    clear_cards();
+    status_label_->hide();
+    count_label_->setText(news_fell_back_
+                              ? tr("%1 articles — NewsAPI unavailable, showing GNews / Yahoo").arg(articles.size())
+                              : tr("%1 articles").arg(articles.size()));
+
+    // Aggregate tone: counts and the mean score of the headlines on screen.
+    if (tone_label_) {
+        int bull = 0, bear = 0, flat = 0;
+        double sum = 0.0;
+        for (const auto& a : articles) {
+            sum += a.sentiment_score;
+            if (a.sentiment == QLatin1String("BULLISH"))
+                ++bull;
+            else if (a.sentiment == QLatin1String("BEARISH"))
+                ++bear;
+            else
+                ++flat;
+        }
+        const double mean = articles.isEmpty() ? 0.0 : sum / articles.size();
+        tone_label_->setText(articles.isEmpty() ? QString()
+                                                : tr("TONE %1%2   ▲%3  ▼%4  •%5")
+                                                      .arg(mean >= 0 ? "+" : "")
+                                                      .arg(QString::number(mean, 'f', 2))
+                                                      .arg(bull)
+                                                      .arg(bear)
+                                                      .arg(flat));
+        tone_label_->setToolTip(tr("Mean finance-tuned VADER score of the headlines below (-1 bearish … +1 bullish). "
+                                   "The Sentiment tab blends this with price momentum, weighting recent news more."));
+    }
+
+    if (articles.isEmpty()) {
+        status_label_->setText(tr("No news found for %1").arg(current_symbol_));
+        status_label_->show();
+        return;
+    }
+
+    for (const auto& art : articles) {
+        auto* card = new QFrame;
+        card->setObjectName(QStringLiteral("newsCard"));
+        card->setCursor(Qt::PointingHandCursor);
+
+        auto* cl = new QVBoxLayout(card);
+        cl->setContentsMargins(14, 12, 14, 12);
+        cl->setSpacing(6);
+
+        // ── Title + meta row ──────────────────────────────────────────────────
+        auto* top_hl = new QHBoxLayout;
+        top_hl->setSpacing(8);
+
+        auto* text_col = new QVBoxLayout;
+        text_col->setSpacing(4);
+
+        auto* title_lbl = new QLabel(art.title);
+        title_lbl->setWordWrap(true);
+        title_lbl->setObjectName(QStringLiteral("newsTitle"));
+        text_col->addWidget(title_lbl);
+
+        // Publisher + date
+        auto* meta_hl = new QHBoxLayout;
+        meta_hl->setSpacing(10);
+        auto* pub_lbl = new QLabel(art.publisher.isEmpty() ? tr("Unknown Source") : art.publisher);
+        pub_lbl->setObjectName(QStringLiteral("newsPublisher"));
+        // "2026-11-08 · 5h ago": the age matters more to a trader than the date.
+        const qint64 ts = services::equity::news_timestamp(art.published_date);
+        auto* date_lbl =
+            new QLabel(ts > 0 ? QStringLiteral("%1 · %2").arg(art.published_date.left(10), services::relative_time(ts))
+                              : art.published_date.left(10));
+        date_lbl->setObjectName(QStringLiteral("newsDate"));
+        meta_hl->addWidget(pub_lbl);
+        meta_hl->addWidget(date_lbl);
+        meta_hl->addStretch();
+        if (!art.sentiment.isEmpty()) {
+            auto* tone = new QLabel(QStringLiteral("%1 %2%3")
+                                        .arg(art.sentiment == QLatin1String("BULLISH")   ? tr("BULLISH")
+                                             : art.sentiment == QLatin1String("BEARISH") ? tr("BEARISH")
+                                                                                         : tr("NEUTRAL"))
+                                        .arg(art.sentiment_score >= 0 ? "+" : "")
+                                        .arg(QString::number(art.sentiment_score, 'f', 2)));
+            tone->setObjectName(QStringLiteral("newsTone"));
+            tone->setProperty("tone", art.sentiment == QLatin1String("BULLISH")   ? QStringLiteral("bull")
+                                      : art.sentiment == QLatin1String("BEARISH") ? QStringLiteral("bear")
+                                                                                  : QStringLiteral("flat"));
+            tone->setToolTip(tr("Headline tone (finance-tuned VADER), -1 bearish … +1 bullish"));
+            meta_hl->addWidget(tone);
+        }
+        text_col->addLayout(meta_hl);
+
+        top_hl->addLayout(text_col, 1);
+        cl->addLayout(top_hl);
+
+        // ── Description ───────────────────────────────────────────────────────
+        if (!art.description.isEmpty() && art.description != "N/A") {
+            auto* desc_lbl = new QLabel(art.description);
+            desc_lbl->setWordWrap(true);
+            desc_lbl->setObjectName(QStringLiteral("newsDesc"));
+            cl->addWidget(desc_lbl);
+        }
+
+        // ── Read full article ──────────────────────────────────────────────────
+        // Only web links: a feed-supplied file:/custom-scheme URL must never reach the OS.
+        const QUrl art_url(art.url);
+        const bool web_link = art_url.isValid() && (art_url.scheme() == QLatin1String("https") ||
+                                                    art_url.scheme() == QLatin1String("http"));
+        if (web_link) {
+            auto* read_lbl = new QLabel(tr("READ FULL ARTICLE →"));
+            read_lbl->setObjectName(QStringLiteral("newsRead"));
+            cl->addWidget(read_lbl);
+
+            // The whole card is the click target (it already shows a hand cursor).
+            // Previously the card's "click filter" was a bare QObject with no
+            // eventFilter override and the link button was sized 0×0, so only the
+            // small "READ FULL ARTICLE" line worked — three dead objects per card
+            // on every refresh. One filter (this) + a url property on both widgets.
+            const QString url = art.url;
+            read_lbl->setCursor(Qt::PointingHandCursor);
+            read_lbl->setProperty("url", url);
+            read_lbl->installEventFilter(this);
+            card->setProperty("url", url);
+            card->installEventFilter(this);
+            card->setToolTip(tr("Open in browser: %1").arg(url));
+            card->setAccessibleName(art.title);
+            card->setAccessibleDescription(tr("Open the full article in your browser"));
+        } else {
+            card->setCursor(Qt::ArrowCursor); // nothing to open — don't imply a link
+        }
+
+        cards_layout_->insertWidget(cards_layout_->count() - 1, card);
+    }
+}
+
+bool EquityNewsTab::eventFilter(QObject* obj, QEvent* event) {
+    if (event->type() == QEvent::MouseButtonRelease) {
+        const QUrl url(obj->property("url").toString());
+        if (url.isValid() && (url.scheme() == QLatin1String("https") || url.scheme() == QLatin1String("http"))) {
+            QDesktopServices::openUrl(url);
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, event);
+}
+
+void EquityNewsTab::on_news_loaded(QString symbol, fincept::services::equity::NewsProvider provider, bool fell_back,
+                                   QVector<services::equity::NewsArticle> articles) {
+    if (symbol != current_symbol_)
+        return;
+    // The Sentiment tab fetches the same symbol through the Auto chain; with NewsAPI selected
+    // here its answer used to repaint this list while the picker still said NewsAPI.
+    using NP = services::equity::NewsProvider;
+    if (provider != (use_newsapi_ ? NP::NewsApi : NP::Auto))
+        return;
+    loading_overlay_->hide_loading();
+    cached_articles_ = articles;
+    news_loaded_ = true;
+    news_fell_back_ = fell_back;
+    populate(articles);
+}
+
+// ── Re-translation ───────────────────────────────────────────────────────────
+// Static chrome (title, refresh button, idle status text) re-set explicitly.
+// Card content is rebuilt by populate() from cached articles so each card's
+// "Unknown Source" fallback and "READ FULL ARTICLE →" link pick up new locale.
+
+void EquityNewsTab::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QWidget::changeEvent(event);
+}
+
+void EquityNewsTab::retranslateUi() {
+    if (title_lbl_)
+        title_lbl_->setText(tr("LATEST NEWS"));
+    if (refresh_btn_)
+        refresh_btn_->setText(tr("REFRESH"));
+    if (open_news_btn_) {
+        open_news_btn_->setText(tr("OPEN IN NEWS ↗"));
+        open_news_btn_->setToolTip(tr("Filter the News screen (all feeds) by this symbol"));
+    }
+    if (provider_combo_) {
+        provider_combo_->setItemText(0, tr("Auto (GNews → Yahoo)"));
+        provider_combo_->setToolTip(tr("News source"));
+    }
+
+    if (status_label_) {
+        // Pick the appropriate idle text — never overwrite a live "Loading…"
+        // string mid-fetch (the next populate() call will replace it).
+        if (current_symbol_.isEmpty())
+            status_label_->setText(tr("Search for a symbol to load news."));
+        else if (!news_loaded_)
+            status_label_->setText(tr("Loading news…"));
+    }
+
+    if (news_loaded_)
+        populate(cached_articles_);
+}
+
+} // namespace fincept::screens

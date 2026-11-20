@@ -1,0 +1,3507 @@
+{
+  "count": 20,
+  "compartments": [
+    {
+      "key": "social_welfare",
+      "name": "Social and Welfare",
+      "short": "Social Welfare",
+      "order": 1,
+      "remit": [
+        "welfare",
+        "benefit",
+        "care",
+        "housing",
+        "health",
+        "community",
+        "family",
+        "shelter",
+        "disaster",
+        "poverty",
+        "child",
+        "elder",
+        "caseworker",
+        "social"
+      ]
+    },
+    {
+      "key": "business_trade",
+      "name": "Business and Trade",
+      "short": "Business Trade",
+      "order": 2,
+      "remit": [
+        "market",
+        "trade",
+        "supply",
+        "vendor",
+        "payment",
+        "logistics",
+        "procurement",
+        "contract",
+        "finance",
+        "financial",
+        "pricing",
+        "inventory",
+        "business",
+        "commerce",
+        "settlement"
+      ]
+    },
+    {
+      "key": "politics_governance",
+      "name": "Politics and Governance",
+      "short": "Politics Governance",
+      "order": 3,
+      "remit": [
+        "policy",
+        "law",
+        "legal",
+        "legislation",
+        "election",
+        "governance",
+        "regulation",
+        "compliance",
+        "municipal",
+        "treaty",
+        "budget",
+        "constituent",
+        "court",
+        "statutory"
+      ]
+    },
+    {
+      "key": "science_research",
+      "name": "Science and Research",
+      "short": "Science Research",
+      "order": 4,
+      "remit": [
+        "research",
+        "experiment",
+        "data",
+        "model",
+        "hypothesis",
+        "study",
+        "patent",
+        "clinical",
+        "simulation",
+        "proof",
+        "science",
+        "scientific",
+        "analysis",
+        "evidence"
+      ]
+    },
+    {
+      "key": "religious_mystical",
+      "name": "Religious and Mystical Organization",
+      "short": "Religious Mystical",
+      "order": 5,
+      "remit": [
+        "doctrine",
+        "ritual",
+        "pastoral",
+        "scripture",
+        "congregation",
+        "pilgrim",
+        "spiritual",
+        "canon",
+        "theolog",
+        "sacred",
+        "clergy",
+        "faith"
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "id": 1,
+      "slug": "prompt-chaining",
+      "name": "Prompt Chaining",
+      "description": "Decomposes a complex task into sequential steps where each LLM call processes the output of the previous step.",
+      "best_for": [
+        "Chatbot applications",
+        "Tool-using AI agents"
+      ],
+      "mechanism": [
+        "Input",
+        "LLM call",
+        "Gate/validation",
+        "LLM call",
+        "Output"
+      ],
+      "achievement_point": "the terminal LLM call's output is evaluated by the caller",
+      "stages": [
+        {
+          "key": "intake",
+          "label": "Intake and routing",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "reason",
+          "label": "First LLM call",
+          "gate": false,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "freellmapi"
+        },
+        {
+          "key": "validate",
+          "label": "Gate / validation",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "reason2",
+          "label": "Second LLM call",
+          "gate": false,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "freellmapi"
+        },
+        {
+          "key": "retrieve",
+          "label": "Retrieval support",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "Scrapling"
+        }
+      ],
+      "replication_source": "agentic-inbox",
+      "referenced_components": [
+        "agentic-inbox",
+        "freellmapi",
+        "grok-jev-router",
+        "Scrapling"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "workflow",
+        "chain",
+        "process",
+        "pipeline",
+        "chatbot"
+      ],
+      "department_kind": "Prompt Chain",
+      "admin_kind": "Output Validation",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 2,
+      "slug": "parallelization",
+      "name": "Parallelization",
+      "description": "Runs multiple LLM calls simultaneously and combines or aggregates the outputs for a final result.",
+      "best_for": [
+        "Guardrails",
+        "Automated evaluations"
+      ],
+      "mechanism": [
+        "Input",
+        "Parallel LLM calls",
+        "Aggregator",
+        "Output"
+      ],
+      "achievement_point": "the aggregator's threshold result is evaluated by the caller",
+      "stages": [
+        {
+          "key": "fanout",
+          "label": "Parallel branches",
+          "gate": false,
+          "components": [
+            {
+              "name": "vibetrading",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Market/signal branches; needs pandas via uv sync."
+            },
+            {
+              "name": "AutoHedge",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Hedge/monitoring branches; needs python-dotenv plus full requirements."
+            },
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            },
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "vibetrading"
+        },
+        {
+          "key": "aggregate",
+          "label": "Aggregator / threshold",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        }
+      ],
+      "replication_source": "AutoHedge",
+      "referenced_components": [
+        "vibetrading",
+        "AutoHedge",
+        "Open-LLM-VTuber",
+        "Scrapling",
+        "grok-jev-router"
+      ],
+      "readiness": "needs_setup",
+      "domain": [
+        "evaluation",
+        "guardrail",
+        "monitoring",
+        "market",
+        "signal"
+      ],
+      "department_kind": "Parallel Evaluation",
+      "admin_kind": "Threshold Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 3,
+      "slug": "orchestrator-worker",
+      "name": "Orchestrator-Worker",
+      "description": "A central LLM breaks down tasks and delegates them to multiple independent worker LLMs.",
+      "best_for": [
+        "Agentic RAG",
+        "Coding agents"
+      ],
+      "mechanism": [
+        "Input",
+        "Orchestrator",
+        "Worker LLMs (parallel)",
+        "Synthesizer",
+        "Output"
+      ],
+      "achievement_point": "the orchestrator's synthesized result is evaluated by the caller",
+      "stages": [
+        {
+          "key": "intake",
+          "label": "Task intake",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "orchestrate",
+          "label": "Orchestrator",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "workers",
+          "label": "Worker pool",
+          "gate": false,
+          "components": [
+            {
+              "name": "agent-desktop",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Worker shell / computer-use environment; needs Rust toolchain plus npm install."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            },
+            {
+              "name": "Open-Higgsfield-AI",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Media-generation worker; needs npm ci."
+            }
+          ],
+          "primary_component": "agent-desktop"
+        },
+        {
+          "key": "synthesize",
+          "label": "Synthesizer",
+          "gate": true,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        }
+      ],
+      "replication_source": "agent-desktop",
+      "referenced_components": [
+        "agentic-inbox",
+        "grok-jev-router",
+        "agent-desktop",
+        "freellmapi",
+        "LibreChat",
+        "Open-Higgsfield-AI",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "research",
+        "coding",
+        "rag",
+        "delegation",
+        "synthesis"
+      ],
+      "department_kind": "Worker Orchestration",
+      "admin_kind": "Synthesis Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 4,
+      "slug": "evaluator-optimizer",
+      "name": "Evaluator-Optimizer",
+      "description": "One model generates output while another evaluates it and suggests improvements in a continuous loop.",
+      "best_for": [
+        "Code generation agents",
+        "Real-time data monitoring"
+      ],
+      "mechanism": [
+        "Generator",
+        "Response",
+        "Evaluator",
+        "Loop back on rejection",
+        "Output"
+      ],
+      "achievement_point": "the evaluator's acceptance decision is the attestation point",
+      "stages": [
+        {
+          "key": "generate",
+          "label": "Generator",
+          "gate": false,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        },
+        {
+          "key": "evaluate",
+          "label": "Evaluator / acceptance",
+          "gate": true,
+          "components": [
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            },
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "claude-ads"
+        }
+      ],
+      "replication_source": "claude-ads",
+      "referenced_components": [
+        "Open-LLM-VTuber",
+        "freellmapi",
+        "claude-ads",
+        "grok-jev-router"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "quality",
+        "code",
+        "monitoring",
+        "review",
+        "improvement"
+      ],
+      "department_kind": "Generation and Review",
+      "admin_kind": "Acceptance Gate",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 5,
+      "slug": "router",
+      "name": "Router",
+      "description": "Classifies an input and directs it to a specialized workflow or specific task path.",
+      "best_for": [
+        "Customer support agents",
+        "Multi-agent debate"
+      ],
+      "mechanism": [
+        "Input",
+        "Router",
+        "Specialized path A / B / C",
+        "Output"
+      ],
+      "achievement_point": "the selected path's output is evaluated by the caller",
+      "stages": [
+        {
+          "key": "intake",
+          "label": "Intake",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "route",
+          "label": "Router / classification",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "paths",
+          "label": "Specialized paths",
+          "gate": false,
+          "components": [
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            },
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "LibreChat"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "agentic-inbox",
+        "grok-jev-router",
+        "LibreChat",
+        "Scrapling"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "support",
+        "classification",
+        "routing",
+        "intake",
+        "triage"
+      ],
+      "department_kind": "Path Routing",
+      "admin_kind": "Classification Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 6,
+      "slug": "autonomous-workflow",
+      "name": "Autonomous Workflow",
+      "description": "An LLM performs actions based on environmental feedback in a continuous cycle.",
+      "best_for": [
+        "Autonomous embodied agents",
+        "Computer-using agents (CUA)"
+      ],
+      "mechanism": [
+        "Input",
+        "LLM call",
+        "Action",
+        "Environment/tools",
+        "Feedback loop",
+        "Output"
+      ],
+      "achievement_point": "the environment feedback loop's terminal state is evaluated by the caller",
+      "stages": [
+        {
+          "key": "observe",
+          "label": "Observe environment",
+          "gate": false,
+          "components": [
+            {
+              "name": "agent-desktop",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Worker shell / computer-use environment; needs Rust toolchain plus npm install."
+            }
+          ],
+          "primary_component": "agent-desktop"
+        },
+        {
+          "key": "act",
+          "label": "Act through tools",
+          "gate": false,
+          "components": [
+            {
+              "name": "FinceptTerminal",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Financial terminal environment/tool; needs CMake plus the C++/Qt toolchain."
+            },
+            {
+              "name": "Pix-Payment-System",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Payment/settlement tool rail; Java needs JDK/Maven, Rust needs cargo."
+            }
+          ],
+          "primary_component": "FinceptTerminal"
+        },
+        {
+          "key": "feedback",
+          "label": "Feedback loop / goal check",
+          "gate": true,
+          "components": [
+            {
+              "name": "Open-Higgsfield-AI",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Media-generation worker; needs npm ci."
+            }
+          ],
+          "primary_component": "Open-Higgsfield-AI"
+        }
+      ],
+      "replication_source": "agent-desktop",
+      "referenced_components": [
+        "agent-desktop",
+        "FinceptTerminal",
+        "Pix-Payment-System",
+        "Open-Higgsfield-AI"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "environment",
+        "desktop",
+        "operations",
+        "control",
+        "feedback"
+      ],
+      "department_kind": "Environment Control",
+      "admin_kind": "Loop Safety",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 7,
+      "slug": "reflexion",
+      "name": "Reflexion",
+      "description": "Agents learn from previous mistakes and revise responses iteratively through self-reflection.",
+      "best_for": [
+        "Complex data monitoring",
+        "Full-stack app agents"
+      ],
+      "mechanism": [
+        "Input",
+        "Respond",
+        "Revisor",
+        "Reflective loop",
+        "Output"
+      ],
+      "achievement_point": "the revisor's accepted revision is evaluated by the caller",
+      "stages": [
+        {
+          "key": "respond",
+          "label": "Respond",
+          "gate": false,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        },
+        {
+          "key": "monitor",
+          "label": "Monitor outcome",
+          "gate": false,
+          "components": [
+            {
+              "name": "AutoHedge",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Hedge/monitoring branches; needs python-dotenv plus full requirements."
+            },
+            {
+              "name": "vibetrading",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Market/signal branches; needs pandas via uv sync."
+            }
+          ],
+          "primary_component": "AutoHedge"
+        },
+        {
+          "key": "revise",
+          "label": "Revisor / reflection",
+          "gate": true,
+          "components": [
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            }
+          ],
+          "primary_component": "claude-ads"
+        }
+      ],
+      "replication_source": "claude-ads",
+      "referenced_components": [
+        "Open-LLM-VTuber",
+        "AutoHedge",
+        "vibetrading",
+        "claude-ads"
+      ],
+      "readiness": "needs_setup",
+      "domain": [
+        "monitoring",
+        "risk",
+        "reflection",
+        "learning",
+        "correction"
+      ],
+      "department_kind": "Reflection",
+      "admin_kind": "Revision Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 8,
+      "slug": "rewoo",
+      "name": "ReWOO (Reasoning WithOut Observation)",
+      "description": "Separates planning from execution for efficient task solving; planning happens before tool outputs are seen.",
+      "best_for": [
+        "Research agents",
+        "Multi-step question answering"
+      ],
+      "mechanism": [
+        "Input",
+        "Planner",
+        "Task list",
+        "Worker/tools",
+        "Solver",
+        "Update and results",
+        "Output"
+      ],
+      "achievement_point": "the solver's final answer is evaluated by the caller",
+      "stages": [
+        {
+          "key": "plan",
+          "label": "Planner",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "tasks",
+          "label": "Task list execution",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            },
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "Scrapling"
+        },
+        {
+          "key": "solve",
+          "label": "Solver / validation",
+          "gate": true,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "grok-jev-router",
+        "Scrapling",
+        "agentic-inbox",
+        "freellmapi",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "research",
+        "planning",
+        "evidence",
+        "question answering"
+      ],
+      "department_kind": "Plan Execution",
+      "admin_kind": "Solver Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 9,
+      "slug": "plan-and-execute",
+      "name": "Plan and Execute",
+      "description": "An agent generates subtasks, specialized agents solve them, and results are sent back to a planner.",
+      "best_for": [
+        "Business process automation",
+        "Data pipeline orchestration"
+      ],
+      "mechanism": [
+        "Input",
+        "Planner",
+        "Generate tasks",
+        "Single task agents (parallel)",
+        "Update task",
+        "Output"
+      ],
+      "achievement_point": "the planner's updated task state is evaluated by the caller",
+      "stages": [
+        {
+          "key": "plan",
+          "label": "Planner",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            },
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "tasks",
+          "label": "Single-task agents",
+          "gate": false,
+          "components": [
+            {
+              "name": "vibetrading",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Market/signal branches; needs pandas via uv sync."
+            },
+            {
+              "name": "AutoHedge",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Hedge/monitoring branches; needs python-dotenv plus full requirements."
+            },
+            {
+              "name": "hyperframes",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Video-render worker; needs npm install plus Bun."
+            },
+            {
+              "name": "Open-Higgsfield-AI",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Media-generation worker; needs npm ci."
+            },
+            {
+              "name": "Pix-Payment-System",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Payment/settlement tool rail; Java needs JDK/Maven, Rust needs cargo."
+            }
+          ],
+          "primary_component": "vibetrading"
+        },
+        {
+          "key": "update",
+          "label": "Update plan / completion",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        }
+      ],
+      "replication_source": "agentic-inbox",
+      "referenced_components": [
+        "grok-jev-router",
+        "agentic-inbox",
+        "vibetrading",
+        "AutoHedge",
+        "hyperframes",
+        "Open-Higgsfield-AI",
+        "Pix-Payment-System"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "process",
+        "pipeline",
+        "operations",
+        "planning",
+        "tasks"
+      ],
+      "department_kind": "Plan Execution",
+      "admin_kind": "Completion Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 10,
+      "slug": "map-reduce",
+      "name": "Map-Reduce",
+      "description": "Splits a large document or dataset into chunks (Map), processes them independently, then summarizes or combines the results (Reduce).",
+      "best_for": [
+        "Summarizing large documents",
+        "Analyzing extensive datasets",
+        "Sentiment analysis across many reviews"
+      ],
+      "mechanism": [
+        "Large input",
+        "Splitter",
+        "Map LLM calls",
+        "Combiner/reducer",
+        "Final output"
+      ],
+      "achievement_point": "the reducer's combined result is evaluated by the caller",
+      "stages": [
+        {
+          "key": "split",
+          "label": "Splitter",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "map",
+          "label": "Map partitions",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "vibetrading",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Market/signal branches; needs pandas via uv sync."
+            }
+          ],
+          "primary_component": "Scrapling"
+        },
+        {
+          "key": "reduce",
+          "label": "Reduce / combine",
+          "gate": true,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        }
+      ],
+      "replication_source": "agentic-inbox",
+      "referenced_components": [
+        "agentic-inbox",
+        "Scrapling",
+        "freellmapi",
+        "vibetrading",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "dataset",
+        "documents",
+        "analysis",
+        "survey",
+        "reviews"
+      ],
+      "department_kind": "Map-Reduce",
+      "admin_kind": "Aggregation Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 11,
+      "slug": "human-in-the-loop",
+      "name": "Human-in-the-Loop (HITL)",
+      "description": "The agent pauses at critical junctures to request human approval, feedback, or manual intervention before proceeding.",
+      "best_for": [
+        "High-stakes financial transactions",
+        "Medical diagnosis assistance",
+        "Legal document review",
+        "Sensitive content moderation"
+      ],
+      "mechanism": [
+        "Agent action",
+        "Pause",
+        "Human review/edit",
+        "Resume agent",
+        "Output"
+      ],
+      "achievement_point": "the recorded human approval is the attestation; the engine never assumes it",
+      "stages": [
+        {
+          "key": "act",
+          "label": "Agent action",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "pause",
+          "label": "Pause / human surface",
+          "gate": false,
+          "components": [
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            }
+          ],
+          "primary_component": "LibreChat"
+        },
+        {
+          "key": "review",
+          "label": "Human review gate",
+          "gate": true,
+          "components": [
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            }
+          ],
+          "primary_component": "claude-ads"
+        },
+        {
+          "key": "resume",
+          "label": "Resume with approval",
+          "gate": false,
+          "components": [
+            {
+              "name": "FinceptTerminal",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Financial terminal environment/tool; needs CMake plus the C++/Qt toolchain."
+            }
+          ],
+          "primary_component": "FinceptTerminal"
+        }
+      ],
+      "replication_source": "LibreChat",
+      "referenced_components": [
+        "agentic-inbox",
+        "LibreChat",
+        "claude-ads",
+        "FinceptTerminal"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "approval",
+        "review",
+        "compliance",
+        "legal",
+        "safety"
+      ],
+      "department_kind": "Human Approval",
+      "admin_kind": "Sign-off Audit",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 12,
+      "slug": "tool-use",
+      "name": "Tool Use (Function Calling)",
+      "description": "The LLM is given access to external APIs, databases, or calculators; it selects a tool, formats input, and uses the result.",
+      "best_for": [
+        "Real-time weather updates",
+        "Stock market queries",
+        "Booking flights",
+        "Database retrieval (SQL agents)"
+      ],
+      "mechanism": [
+        "Input",
+        "LLM selects tool",
+        "Execute API/tool",
+        "Observation",
+        "LLM synthesizes answer",
+        "Output"
+      ],
+      "achievement_point": "the tool result and synthesized answer are evaluated by the caller",
+      "stages": [
+        {
+          "key": "select",
+          "label": "Tool selection",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "execute",
+          "label": "Execute tool",
+          "gate": false,
+          "components": [
+            {
+              "name": "Pix-Payment-System",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Payment/settlement tool rail; Java needs JDK/Maven, Rust needs cargo."
+            },
+            {
+              "name": "FinceptTerminal",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Financial terminal environment/tool; needs CMake plus the C++/Qt toolchain."
+            },
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "Pix-Payment-System"
+        },
+        {
+          "key": "observe",
+          "label": "Observation",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "synthesize",
+          "label": "Synthesize answer",
+          "gate": true,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "freellmapi"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "grok-jev-router",
+        "Pix-Payment-System",
+        "FinceptTerminal",
+        "Scrapling",
+        "agentic-inbox",
+        "freellmapi"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "api",
+        "database",
+        "payment",
+        "query",
+        "integration"
+      ],
+      "department_kind": "Tool Execution",
+      "admin_kind": "Tool Authorization",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 13,
+      "slug": "multi-agent-debate",
+      "name": "Multi-Agent Debate",
+      "description": "Two or more agents debate opposing viewpoints; a judge agent or consensus mechanism determines the final answer.",
+      "best_for": [
+        "Complex reasoning tasks",
+        "Fact-checking",
+        "Reducing hallucinations",
+        "Policy analysis"
+      ],
+      "mechanism": [
+        "Input",
+        "Agent A (pro) + Agent B (con)",
+        "Multiple debate rounds",
+        "Judge agent",
+        "Final output"
+      ],
+      "achievement_point": "the judge's verdict is evaluated by the caller",
+      "stages": [
+        {
+          "key": "pro",
+          "label": "Pro position",
+          "gate": false,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        },
+        {
+          "key": "con",
+          "label": "Con position",
+          "gate": false,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "freellmapi"
+        },
+        {
+          "key": "rounds",
+          "label": "Multi-persona orchestration",
+          "gate": false,
+          "components": [
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            }
+          ],
+          "primary_component": "LibreChat"
+        },
+        {
+          "key": "judge",
+          "label": "Judge / verdict",
+          "gate": true,
+          "components": [
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            }
+          ],
+          "primary_component": "claude-ads"
+        }
+      ],
+      "replication_source": "claude-ads",
+      "referenced_components": [
+        "Open-LLM-VTuber",
+        "freellmapi",
+        "LibreChat",
+        "claude-ads"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "policy",
+        "fact",
+        "reasoning",
+        "verdict",
+        "argument"
+      ],
+      "department_kind": "Structured Debate",
+      "admin_kind": "Verdict Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 14,
+      "slug": "rag",
+      "name": "Retrieval-Augmented Generation (RAG)",
+      "description": "Retrieves relevant documents from a vector store based on the query and uses that context to generate a grounded answer.",
+      "best_for": [
+        "Enterprise search",
+        "Customer support knowledge bases",
+        "Legal research"
+      ],
+      "mechanism": [
+        "Input",
+        "Embedding",
+        "Vector DB search",
+        "Retrieved context",
+        "LLM call",
+        "Output"
+      ],
+      "achievement_point": "the grounded answer's citations are evaluated by the caller",
+      "stages": [
+        {
+          "key": "embed",
+          "label": "Embedding",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "Scrapling"
+        },
+        {
+          "key": "retrieve",
+          "label": "Vector/doc retrieval",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "generate",
+          "label": "Grounded generation",
+          "gate": true,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "freellmapi"
+        }
+      ],
+      "replication_source": "Scrapling",
+      "referenced_components": [
+        "Scrapling",
+        "agentic-inbox",
+        "freellmapi",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "knowledge",
+        "research",
+        "legal",
+        "records",
+        "documents"
+      ],
+      "department_kind": "Knowledge Retrieval",
+      "admin_kind": "Grounding Audit",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 15,
+      "slug": "cot-cove",
+      "name": "Chain of Thought / Chain of Verification",
+      "description": "The agent thinks step by step; in CoVe it drafts an answer, writes verification questions, answers them, then produces a verified response.",
+      "best_for": [
+        "Mathematical problem solving",
+        "Logical reasoning",
+        "Complex code debugging"
+      ],
+      "mechanism": [
+        "Input",
+        "Step-by-step reasoning",
+        "Draft answer",
+        "Verification steps",
+        "Final output"
+      ],
+      "achievement_point": "the verification pass's result is evaluated by the caller",
+      "stages": [
+        {
+          "key": "reason",
+          "label": "Step-by-step reasoning",
+          "gate": false,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        },
+        {
+          "key": "draft",
+          "label": "Draft answer",
+          "gate": false,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            }
+          ],
+          "primary_component": "freellmapi"
+        },
+        {
+          "key": "verify",
+          "label": "Verification",
+          "gate": true,
+          "components": [
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            },
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "claude-ads"
+        }
+      ],
+      "replication_source": "Open-LLM-VTuber",
+      "referenced_components": [
+        "Open-LLM-VTuber",
+        "freellmapi",
+        "claude-ads",
+        "grok-jev-router"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "math",
+        "proof",
+        "verification",
+        "reasoning",
+        "evidence"
+      ],
+      "department_kind": "Verification",
+      "admin_kind": "Proof Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 16,
+      "slug": "ensemble",
+      "name": "Ensemble / Mixture of Agents",
+      "description": "Different models answer the same prompt simultaneously; a synthesizer compares outputs to find the most robust answer.",
+      "best_for": [
+        "High-accuracy tasks",
+        "Creative brainstorming",
+        "Reducing model-specific biases"
+      ],
+      "mechanism": [
+        "Input",
+        "Model A + Model B + Model C",
+        "Synthesizer/aggregator",
+        "Output"
+      ],
+      "achievement_point": "the synthesizer's chosen answer is evaluated by the caller",
+      "stages": [
+        {
+          "key": "members",
+          "label": "Ensemble members",
+          "gate": false,
+          "components": [
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            },
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            }
+          ],
+          "primary_component": "freellmapi"
+        },
+        {
+          "key": "synthesize",
+          "label": "Synthesizer",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "freellmapi",
+        "Open-LLM-VTuber",
+        "claude-ads",
+        "grok-jev-router"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "forecast",
+        "strategy",
+        "consensus",
+        "accuracy",
+        "comparison"
+      ],
+      "department_kind": "Ensemble Synthesis",
+      "admin_kind": "Consensus Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 17,
+      "slug": "memory-augmented",
+      "name": "Memory-Augmented Agent",
+      "description": "The agent uses short-term (conversation) and long-term (vector) memory, deciding what to store and retrieve.",
+      "best_for": [
+        "Personalized assistants",
+        "Long-term project management",
+        "Therapy bots",
+        "Tutoring systems"
+      ],
+      "mechanism": [
+        "Input",
+        "Retrieve memory",
+        "LLM call",
+        "Update memory",
+        "Output"
+      ],
+      "achievement_point": "the memory update's persisted record is evaluated by the caller",
+      "stages": [
+        {
+          "key": "retrieve",
+          "label": "Retrieve long-term memory",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "reason",
+          "label": "LLM call",
+          "gate": false,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        },
+        {
+          "key": "store",
+          "label": "Update memory",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "Scrapling"
+        },
+        {
+          "key": "shortterm",
+          "label": "Short-term conversation memory",
+          "gate": true,
+          "components": [
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            }
+          ],
+          "primary_component": "LibreChat"
+        }
+      ],
+      "replication_source": "agentic-inbox",
+      "referenced_components": [
+        "agentic-inbox",
+        "Open-LLM-VTuber",
+        "Scrapling",
+        "LibreChat"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "history",
+        "personalization",
+        "records",
+        "longitudinal",
+        "memory"
+      ],
+      "department_kind": "Memory",
+      "admin_kind": "Record Stewardship",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 18,
+      "slug": "semantic-routing",
+      "name": "Semantic Routing",
+      "description": "Routes queries by vector-embedding similarity rather than keyword classification, often to dedicated sub-agents.",
+      "best_for": [
+        "Large-scale customer service",
+        "Multi-domain knowledge bases"
+      ],
+      "mechanism": [
+        "Input",
+        "Embedding",
+        "Semantic similarity match",
+        "Dedicated agent/workflow",
+        "Output"
+      ],
+      "achievement_point": "the routed agent's answer is evaluated by the caller",
+      "stages": [
+        {
+          "key": "embed",
+          "label": "Embedding",
+          "gate": false,
+          "components": [
+            {
+              "name": "Scrapling",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+            }
+          ],
+          "primary_component": "Scrapling"
+        },
+        {
+          "key": "match",
+          "label": "Semantic similarity match",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "agents",
+          "label": "Dedicated sub-agents",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "Scrapling",
+        "grok-jev-router",
+        "agentic-inbox",
+        "freellmapi",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "support",
+        "semantic",
+        "triage",
+        "domain",
+        "classification"
+      ],
+      "department_kind": "Semantic Routing",
+      "admin_kind": "Routing Audit",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 19,
+      "slug": "hierarchical-planning",
+      "name": "Hierarchical Planning",
+      "description": "A top-level agent makes a high-level plan; sub-planners break it into granular tasks that execution agents handle.",
+      "best_for": [
+        "Software development",
+        "Complex event planning",
+        "Supply chain logistics"
+      ],
+      "mechanism": [
+        "Goal",
+        "High-level planner",
+        "Sub-planners",
+        "Execution agents",
+        "Aggregator",
+        "Output"
+      ],
+      "achievement_point": "the aggregator's completion report is evaluated by the caller",
+      "stages": [
+        {
+          "key": "plan",
+          "label": "High-level planner",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "subplan",
+          "label": "Sub-planners",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            },
+            {
+              "name": "claude-ads",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Evaluator/critic worker; needs a local venv."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "execute",
+          "label": "Execution agents",
+          "gate": false,
+          "components": [
+            {
+              "name": "agent-desktop",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Worker shell / computer-use environment; needs Rust toolchain plus npm install."
+            },
+            {
+              "name": "Open-Higgsfield-AI",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Media-generation worker; needs npm ci."
+            },
+            {
+              "name": "vibetrading",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Market/signal branches; needs pandas via uv sync."
+            },
+            {
+              "name": "AutoHedge",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Hedge/monitoring branches; needs python-dotenv plus full requirements."
+            }
+          ],
+          "primary_component": "agent-desktop"
+        },
+        {
+          "key": "aggregate",
+          "label": "Aggregator / completion",
+          "gate": true,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        }
+      ],
+      "replication_source": "grok-jev-router",
+      "referenced_components": [
+        "grok-jev-router",
+        "agentic-inbox",
+        "claude-ads",
+        "agent-desktop",
+        "Open-Higgsfield-AI",
+        "vibetrading",
+        "AutoHedge"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "program",
+        "strategy",
+        "development",
+        "logistics",
+        "planning"
+      ],
+      "department_kind": "Hierarchical Plan",
+      "admin_kind": "Milestone Review",
+      "compartment_agnostic": true
+    },
+    {
+      "id": 20,
+      "slug": "swarm-intelligence",
+      "name": "Swarm Intelligence (Handoffs)",
+      "description": "Decentralized agents operate independently and hand off control to one another; no central orchestrator decides who speaks next.",
+      "best_for": [
+        "Dynamic customer service flows",
+        "Complex simulations",
+        "Game AI"
+      ],
+      "mechanism": [
+        "Input",
+        "Agent A",
+        "Handoff",
+        "Agent B",
+        "Handoff to Agent C",
+        "Final output"
+      ],
+      "achievement_point": "the swarm's emergent terminal state is evaluated by the caller; there is no self-elected authority",
+      "stages": [
+        {
+          "key": "agents",
+          "label": "Independent agents",
+          "gate": false,
+          "components": [
+            {
+              "name": "agentic-inbox",
+              "declared_status": "ready",
+              "live_status": null,
+              "note": "Intake, routing, and long-term document/memory store."
+            },
+            {
+              "name": "freellmapi",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+            },
+            {
+              "name": "LibreChat",
+              "declared_status": "blocked",
+              "live_status": null,
+              "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+            }
+          ],
+          "primary_component": "agentic-inbox"
+        },
+        {
+          "key": "handoff",
+          "label": "Handoff control",
+          "gate": false,
+          "components": [
+            {
+              "name": "grok-jev-router",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+            }
+          ],
+          "primary_component": "grok-jev-router"
+        },
+        {
+          "key": "consensus",
+          "label": "Emergent consensus / elected admin",
+          "gate": true,
+          "components": [
+            {
+              "name": "Open-LLM-VTuber",
+              "declared_status": "needs_setup",
+              "live_status": null,
+              "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+            }
+          ],
+          "primary_component": "Open-LLM-VTuber"
+        }
+      ],
+      "replication_source": "agentic-inbox",
+      "referenced_components": [
+        "agentic-inbox",
+        "freellmapi",
+        "LibreChat",
+        "grok-jev-router",
+        "Open-LLM-VTuber"
+      ],
+      "readiness": "blocked",
+      "domain": [
+        "network",
+        "handoff",
+        "coordination",
+        "simulation",
+        "service"
+      ],
+      "department_kind": "Swarm Handoff",
+      "admin_kind": "Handoff Review",
+      "compartment_agnostic": true
+    }
+  ],
+  "components": [
+    {
+      "name": "agentic-inbox",
+      "declared_status": "ready",
+      "note": "Intake, routing, and long-term document/memory store."
+    },
+    {
+      "name": "grok-jev-router",
+      "declared_status": "needs_setup",
+      "note": "Primary dispatcher/classifier; JEV_OFFLINE=1 uses the bundled local evaluator, paid use needs TYPESAFE_API_KEY."
+    },
+    {
+      "name": "freellmapi",
+      "declared_status": "blocked",
+      "note": "Shared free LLM worker pool; needs npm install in the shared tree."
+    },
+    {
+      "name": "Scrapling",
+      "declared_status": "needs_setup",
+      "note": "Retrieval, embedding, and scraping workers; needs orjson via uv sync."
+    },
+    {
+      "name": "vibetrading",
+      "declared_status": "needs_setup",
+      "note": "Market/signal branches; needs pandas via uv sync."
+    },
+    {
+      "name": "AutoHedge",
+      "declared_status": "needs_setup",
+      "note": "Hedge/monitoring branches; needs python-dotenv plus full requirements."
+    },
+    {
+      "name": "Open-LLM-VTuber",
+      "declared_status": "needs_setup",
+      "note": "Conversational/voice worker and reasoning surface; needs a Python venv with deps."
+    },
+    {
+      "name": "claude-ads",
+      "declared_status": "needs_setup",
+      "note": "Evaluator/critic worker; needs a local venv."
+    },
+    {
+      "name": "agent-desktop",
+      "declared_status": "blocked",
+      "note": "Worker shell / computer-use environment; needs Rust toolchain plus npm install."
+    },
+    {
+      "name": "LibreChat",
+      "declared_status": "blocked",
+      "note": "Human-facing chat, short-term memory, multi-persona; needs npm/Bun dependencies."
+    },
+    {
+      "name": "Open-Higgsfield-AI",
+      "declared_status": "blocked",
+      "note": "Media-generation worker; needs npm ci."
+    },
+    {
+      "name": "hyperframes",
+      "declared_status": "blocked",
+      "note": "Video-render worker; needs npm install plus Bun."
+    },
+    {
+      "name": "FinceptTerminal",
+      "declared_status": "blocked",
+      "note": "Financial terminal environment/tool; needs CMake plus the C++/Qt toolchain."
+    },
+    {
+      "name": "Pix-Payment-System",
+      "declared_status": "needs_setup",
+      "note": "Payment/settlement tool rail; Java needs JDK/Maven, Rust needs cargo."
+    }
+  ],
+  "anatomy": [
+    {
+      "layer": 1,
+      "name": "Agent Core (model routing + reasoning)",
+      "role": "Cognitive engine: interprets input, selects one of the 20 workflow patterns, decides actions.",
+      "examples": [
+        "Claude",
+        "OpenAI",
+        "Gemini",
+        "OpenRouter"
+      ],
+      "components": [
+        "freellmapi",
+        "Open-LLM-VTuber",
+        "claude-ads",
+        "grok-jev-router"
+      ],
+      "implementation": "AgentCore.route_and_reason(prompt, context) behind a provider-agnostic LLM gateway.",
+      "governance": "Achievement is attested here, not inferred. The Top Admin replicates only on attestation + a necessity decision."
+    },
+    {
+      "layer": 2,
+      "name": "Orchestration & workflow execution",
+      "role": "Control flow: executes the chosen workflow pattern and manages state.",
+      "examples": [
+        "LangGraph",
+        "CrewAI"
+      ],
+      "components": [
+        "agentic-inbox",
+        "AutoHedge"
+      ],
+      "implementation": "WorkflowEngine.run(workflow, input, context, llm, tools) over a DAG/state machine of stage nodes.",
+      "governance": "Stages run sequentially; a closed gate stops the DAG and downstream stages are skipped, never faked."
+    },
+    {
+      "layer": 3,
+      "name": "Memory & knowledge",
+      "role": "Context and persistence: short-term conversation history and long-term retrieval.",
+      "examples": [
+        "Redis",
+        "Qdrant",
+        "Supabase",
+        "LlamaIndex"
+      ],
+      "components": [
+        "Scrapling",
+        "LibreChat",
+        "agentic-inbox"
+      ],
+      "implementation": "MemoryManager.retrieve(query), store(context), update_long_term().",
+      "governance": "Each spawned compartment keeps an isolated store; sharing only via permissioned handoffs."
+    },
+    {
+      "layer": 4,
+      "name": "Tools & actions",
+      "role": "Hands: APIs, code execution, payments.",
+      "examples": [
+        "MCP",
+        "Firecrawl",
+        "Tavily",
+        "Exa"
+      ],
+      "components": [
+        "Pix-Payment-System",
+        "FinceptTerminal",
+        "agent-desktop",
+        "vibetrading"
+      ],
+      "implementation": "ToolRegistry of callables with JSON schemas (function calling, workflow 12).",
+      "governance": "Only agents explicitly authorized for the compartment may trigger high-stakes rails."
+    },
+    {
+      "layer": 5,
+      "name": "Interfaces & triggers",
+      "role": "Entry points and output surfaces.",
+      "examples": [
+        "Vercel/Next.js",
+        "Twilio/ElevenLabs",
+        "Telegram/WhatsApp",
+        "Zapier",
+        "Temporal"
+      ],
+      "components": [
+        "Open-LLM-VTuber",
+        "hyperframes",
+        "agentic-inbox"
+      ],
+      "implementation": "InterfaceAdapter layer: cron, webhook, chat, and voice adapters call the workflow engine.",
+      "governance": "Triggers are recorded as evidence; they never count as achievement on their own."
+    },
+    {
+      "layer": 6,
+      "name": "Observability & evaluation",
+      "role": "Feedback loop: trace actions, evaluate performance, catch errors.",
+      "examples": [
+        "LangSmith",
+        "Langfuse",
+        "Braintrust",
+        "Sentry"
+      ],
+      "components": [
+        "claude-ads",
+        "AutoHedge"
+      ],
+      "implementation": "Tracer logs every state transition; an Evaluator node checks a rubric before the workflow proceeds.",
+      "governance": "The evaluator produces the achievement attestation the engine consumes; it is an input, not a self-verdict."
+    },
+    {
+      "layer": 7,
+      "name": "Deployment & scaling",
+      "role": "Infrastructure that keeps agents running and spawns new ones.",
+      "examples": [
+        "Docker",
+        "Modal",
+        "Cloudflare"
+      ],
+      "components": [
+        "agent-desktop",
+        "FinceptTerminal"
+      ],
+      "implementation": "Per-component images (Rust/CMake/Qt baked in) and a deploy orchestrator for worker pools.",
+      "governance": "Spawning is capped and fail-closed; a failed spawn halts the cascade instead of skipping ahead."
+    }
+  ],
+  "tech_stack": [
+    {
+      "layer": "01",
+      "name": "Foundation models",
+      "components": [
+        "freellmapi",
+        "grok-jev-router"
+      ],
+      "note": "Abstracted behind an LLM gateway to enable Router/Ensemble workflows."
+    },
+    {
+      "layer": "02",
+      "name": "Agent frameworks",
+      "components": [
+        "agentic-inbox",
+        "AutoHedge"
+      ],
+      "note": "Orchestration logic behind the platform WorkflowEngine."
+    },
+    {
+      "layer": "03",
+      "name": "Tools & protocols",
+      "components": [
+        "Pix-Payment-System",
+        "FinceptTerminal",
+        "Scrapling"
+      ],
+      "note": "MCP and function calling plug in here."
+    },
+    {
+      "layer": "04",
+      "name": "Memory & knowledge",
+      "components": [
+        "Scrapling",
+        "LibreChat",
+        "agentic-inbox"
+      ],
+      "note": "Vector store, cache, RAG behind MemoryManager."
+    },
+    {
+      "layer": "05",
+      "name": "Agent runtime & hosting",
+      "components": [
+        "agent-desktop"
+      ],
+      "note": "Docker/Kubernetes/Modal; required for self-replication."
+    },
+    {
+      "layer": "06",
+      "name": "Interface & UI",
+      "components": [
+        "hyperframes",
+        "LibreChat"
+      ],
+      "note": "Chat, web, voice, CLI surfaces."
+    }
+  ],
+  "production_layer": [
+    {
+      "concern": "Observability",
+      "examples": [
+        "LangSmith"
+      ],
+      "platform": "run/report tracking, watchdog, alerts",
+      "gate": "Supplies evidence; the caller turns evidence into attestation."
+    },
+    {
+      "concern": "Evaluation",
+      "examples": [
+        "Braintrust"
+      ],
+      "platform": "claude-ads evaluator + gate decisions",
+      "gate": "Powers Evaluator-Optimizer (04) and every stage gate."
+    },
+    {
+      "concern": "Guardrails",
+      "examples": [
+        "Guardrails AI"
+      ],
+      "platform": "orchestrator/policy.py",
+      "gate": "Input filtering and command policy; required for HITL (11)."
+    },
+    {
+      "concern": "Agent identity",
+      "examples": [
+        "Auth0"
+      ],
+      "platform": "agent specs + registry + constitution hash",
+      "gate": "Only authorized agents execute high-stakes tools."
+    },
+    {
+      "concern": "LLM gateway",
+      "examples": [
+        "Portkey"
+      ],
+      "platform": "freellmapi + grok-jev-router",
+      "gate": "Routing, fallbacks; powers semantic routing and parallelization."
+    }
+  ],
+  "architecture": {
+    "layers": [
+      {
+        "key": "foundation_models",
+        "name": "Foundation models",
+        "status": "realized"
+      },
+      {
+        "key": "agent_frameworks",
+        "name": "Agent frameworks",
+        "status": "realized"
+      },
+      {
+        "key": "tools_protocols",
+        "name": "Tools and protocols",
+        "status": "realized"
+      },
+      {
+        "key": "memory_knowledge",
+        "name": "Memory and knowledge",
+        "status": "realized"
+      },
+      {
+        "key": "runtime_hosting",
+        "name": "Agent runtime and hosting",
+        "status": "realized"
+      },
+      {
+        "key": "interface_ui",
+        "name": "Interface and UI",
+        "status": "realized"
+      }
+    ],
+    "environments": [
+      {
+        "component": "vibetrading",
+        "name": "Vibetrading environment",
+        "scope": "vibetrading-main",
+        "posture": "trading-only; live capital denied by default (0-funding posture)",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "python": "3.12"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "AutoHedge",
+        "name": "AutoHedge (hedge trading) environment",
+        "scope": "AutoHedge-main",
+        "posture": "live capital denied without operator authorization",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "python": "3.12"
+          },
+          "services": [],
+          "required_env": [
+            "JUPITER_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "WORKSPACE_DIR",
+            "WALLET_PRIVATE_KEY"
+          ],
+          "required_env_count": 5,
+          "capabilities": [
+            "import-check",
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "spider-ai--trading-bot",
+        "name": "Spider trading bot environment",
+        "scope": "spider-ai--trading-bot-main",
+        "posture": "live capital denied without operator authorization; MAX_ORDER_SIZE_USD / MAX_POSITION_SIZE_USD are environment-level caps",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "rust": "stable"
+          },
+          "services": [
+            "mongodb"
+          ],
+          "required_env": [
+            "USER_ADDRESSES",
+            "PROXY_WALLET",
+            "PRIVATE_KEY",
+            "CLOB_HTTP_URL",
+            "CLOB_WS_URL",
+            "MONGO_URI",
+            "RPC_URL",
+            "USDC_CONTRACT_ADDRESS",
+            "FETCH_INTERVAL",
+            "TOO_OLD_TIMESTAMP",
+            "RETRY_LIMIT",
+            "REQUEST_TIMEOUT_MS",
+            "NETWORK_RETRY_LIMIT",
+            "PREVIEW_MODE",
+            "COPY_STRATEGY",
+            "COPY_SIZE",
+            "MAX_ORDER_SIZE_USD",
+            "MIN_ORDER_SIZE_USD",
+            "MAX_POSITION_SIZE_USD",
+            "MAX_DAILY_VOLUME_USD",
+            "ADAPTIVE_MIN_PERCENT",
+            "ADAPTIVE_MAX_PERCENT",
+            "ADAPTIVE_THRESHOLD_USD",
+            "TIERED_MULTIPLIERS",
+            "COPY_PERCENTAGE",
+            "TRADE_MULTIPLIER",
+            "TRADE_AGGREGATION_ENABLED",
+            "TRADE_AGGREGATION_WINDOW_SECONDS",
+            "AUTO_CLAIM_ENABLED",
+            "DB_CLEANUP_ENABLED",
+            "TAKE_PROFIT_PERCENT",
+            "STOP_LOSS_PERCENT",
+            "TP_SL_CHECK_INTERVAL_MS"
+          ],
+          "required_env_count": 33,
+          "capabilities": [
+            "build",
+            "test"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "Pix-Payment-System",
+        "name": "Payment rail environment",
+        "scope": "Pix-Payment-System-main",
+        "posture": "deny settlement/withdrawal unless explicitly authorized; spend denied",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "java": "17"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "build",
+            "import-check",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "FinceptTerminal",
+        "name": "Fincept Terminal environment",
+        "scope": "FinceptTerminal-main",
+        "posture": "live capital denied by default",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "cmake": ">=3.20 (+ Qt 6)"
+          },
+          "services": [
+            "ollama"
+          ],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "configure",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "agentic-inbox",
+        "name": "Agentic inbox environment",
+        "scope": "agentic-inbox-main",
+        "posture": "quiet intake; outbound writes gated",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "node": ">=18"
+          },
+          "services": [
+            "cloudflare"
+          ],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "install",
+            "dev",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "agent-desktop",
+        "name": "Desktop environment",
+        "scope": "agent-desktop-main",
+        "posture": "destructive command patterns blocked; cwd must stay inside scope",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "rust": "1.89.0"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "build",
+            "test",
+            "install",
+            "build",
+            "build",
+            "build",
+            "build",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "LibreChat",
+        "name": "Multi-persona chat environment",
+        "scope": "LibreChat-main",
+        "posture": "tenant isolation enforced; audit log fail-closed",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "node": ">=18",
+            "package_manager": "npm@11.13.0"
+          },
+          "services": [
+            "mongodb",
+            "redis",
+            "ollama"
+          ],
+          "required_env": [
+            "HOST",
+            "PORT",
+            "HTTP_KEEP_ALIVE_TIMEOUT_MS",
+            "HTTP_KEEP_ALIVE_TIMEOUT_BUFFER_MS",
+            "HTTP_HEADERS_TIMEOUT_MS",
+            "HTTP_REQUEST_TIMEOUT_MS",
+            "MONGO_URI",
+            "CHANNEL_SERVICE_TOKEN",
+            "CHANNEL_ID",
+            "CHANNEL_TENANT_ID",
+            "SLACK_APP_TOKEN",
+            "SLACK_WORKSPACES_ENABLED",
+            "CHANNEL_GATEWAY_PORT",
+            "SLACK_GATEWAY_URL",
+            "MONGO_MAX_POOL_SIZE",
+            "MONGO_MIN_POOL_SIZE",
+            "MONGO_MAX_CONNECTING",
+            "MONGO_MAX_IDLE_TIME_MS",
+            "MONGO_WAIT_QUEUE_TIMEOUT_MS",
+            "MONGO_AUTO_INDEX",
+            "MONGO_AUTO_CREATE",
+            "DOMAIN_CLIENT",
+            "DOMAIN_SERVER",
+            "ADMIN_PANEL_URL",
+            "ADMIN_PANEL_SESSION_SECRET",
+            "ADMIN_PANEL_PORT",
+            "ENABLE_INSIGHTS",
+            "NO_INDEX",
+            "TRUST_PROXY",
+            "SECURITY_HEADERS",
+            "HSTS_ENABLED",
+            "HSTS_MAX_AGE",
+            "HSTS_INCLUDE_SUBDOMAINS",
+            "HSTS_PRELOAD",
+            "X_FRAME_OPTIONS",
+            "REFERRER_POLICY",
+            "CROSS_ORIGIN_OPENER_POLICY",
+            "CROSS_ORIGIN_RESOURCE_POLICY",
+            "CSP_ENABLED",
+            "CSP_REPORT_ONLY",
+            "CSP_REPORT_URI",
+            "CSP_ALLOW_WASM",
+            "CSP_ALLOW_DATA_WORKERS",
+            "CSP_CONNECT_SRC_EXTRA",
+            "CSP_FRAME_SRC_EXTRA",
+            "CSP_IMG_SRC_EXTRA",
+            "CSP_STYLE_SRC_EXTRA",
+            "CSP_FONT_SRC_EXTRA",
+            "CSP_MEDIA_SRC_EXTRA",
+            "CSP_WORKER_SRC_EXTRA",
+            "CSP_FORM_ACTION_EXTRA",
+            "CSP_DEFAULT_SRC_EXTRA",
+            "CSP_SCRIPT_SRC_EXTRA",
+            "CSP_FRAME_ANCESTORS",
+            "CSP_ADDITIONAL_DIRECTIVES",
+            "TRUST_TENANT_HEADER",
+            "MIN_PASSWORD_LENGTH",
+            "CONTINUE_ON_UNCAUGHT_EXCEPTION",
+            "AUDIT_LOG_FAIL_CLOSED",
+            "CONSOLE_JSON",
+            "CONSOLE_JSON_STRING_LENGTH",
+            "LOG_REDACTION_MAX_NODES",
+            "DEBUG_LOGGING",
+            "DEBUG_CONSOLE",
+            "CONSOLE_LOG_LEVEL",
+            "LOG_TO_FILE",
+            "AGENT_DEBUG_LOGGING",
+            "MEM_DIAG",
+            "UID",
+            "GID",
+            "NODE_OPTIONS",
+            "NODE_MAX_OLD_SPACE_SIZE",
+            "CONFIG_PATH",
+            "CONFIG_OVERRIDE_ENV_ALLOWLIST",
+            "CONFIG_REDERIVE_ENDPOINTS",
+            "DEPLOYMENT_SKILLS_DIR",
+            "DEPLOYMENT_PLUGINS_DIR",
+            "DEPLOYMENT_PLUGIN_DATA_DIR",
+            "DEPLOYMENT_PLUGIN_HOOKS",
+            "LANGFUSE_PUBLIC_KEY",
+            "LANGFUSE_SECRET_KEY",
+            "LANGFUSE_BASE_URL",
+            "LANGFUSE_PROJECT_ID",
+            "LANGFUSE_TRACING_ENABLED",
+            "LANGFUSE_SAMPLE_RATE",
+            "LANGFUSE_PROMPT_SYNC_AVAILABLE",
+            "LANGFUSE_PROMPT_SYNC_TIMEOUT_MS",
+            "LANGFUSE_FANOUT_ENABLED",
+            "LANGFUSE_FANOUT_COLLECTOR_URL",
+            "LANGFUSE_FANOUT_CENTRAL_MEDIA_UPLOAD_DISABLED",
+            "LANGFUSE_FANOUT_LISTEN_ADDR",
+            "LANGFUSE_FANOUT_TENANT_EXPORT_DISABLED",
+            "LANGFUSE_FANOUT_CENTRAL_BASE_URL",
+            "LANGFUSE_FANOUT_CENTRAL_AUTH_HEADER",
+            "LANGFUSE_FANOUT_CENTRAL_MEDIA_EXPORT_DISABLED",
+            "LANGFUSE_FANOUT_TENANT_DESTINATIONS",
+            "LANGFUSE_FANOUT_TRACE_DESTINATION_KEYS",
+            "LANGFUSE_FANOUT_PUBLIC_URL",
+            "LANGFUSE_FANOUT_TRACE_COLLECTOR_URL",
+            "LANGFUSE_FANOUT_REDIS_URI",
+            "LANGFUSE_FANOUT_REDIS_USERNAME",
+            "LANGFUSE_FANOUT_REDIS_PASSWORD",
+            "LANGFUSE_FANOUT_REDIS_KEY_PREFIX",
+            "LANGFUSE_FANOUT_OTEL_RECEIVER_ENDPOINT",
+            "LANGFUSE_FANOUT_TENANT_EU_BASE_URL",
+            "LANGFUSE_FANOUT_TENANT_US_BASE_URL",
+            "LANGFUSE_FANOUT_TENANT_JP_BASE_URL",
+            "LANGFUSE_FANOUT_UPSTREAM_TIMEOUT",
+            "LANGFUSE_FANOUT_METRICS_SECRET",
+            "LANGFUSE_FANOUT_MEMORY_LIMIT_MIB",
+            "LANGFUSE_FANOUT_MEMORY_SPIKE_LIMIT_MIB",
+            "LANGFUSE_FANOUT_BATCH_TIMEOUT",
+            "LANGFUSE_FANOUT_BATCH_SEND_SIZE",
+            "LANGFUSE_FANOUT_METADATA_CARDINALITY_LIMIT",
+            "OTEL_TRACING_ENABLED",
+            "OTEL_LOGS_ENABLED",
+            "OTEL_LOGS_LEVEL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_SERVICE_VERSION",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_HEADERS",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_LOGS_EXPORTER",
+            "OTEL_TRACES_SAMPLER",
+            "OTEL_LOG_LEVEL",
+            "OTEL_SDK_DISABLED",
+            "OTEL_IOREDIS_TRACING_ENABLED",
+            "RUM_ENABLED",
+            "RUM_PROVIDER",
+            "RUM_URL",
+            "RUM_SERVICE_NAME",
+            "RUM_ENVIRONMENT",
+            "RUM_AUTH_MODE",
+            "RUM_PUBLIC_TOKEN",
+            "RUM_PROXY_TARGET_URL",
+            "RUM_PROXY_TIMEOUT_MS",
+            "RUM_PROXY_AUTHORIZATION",
+            "RUM_PROXY_BODY_LIMIT",
+            "RUM_PROXY_USER_MAX",
+            "RUM_PROXY_USER_WINDOW",
+            "RUM_CLIENT_LOGS",
+            "RUM_TRACE_PROPAGATION_TARGETS",
+            "RUM_SESSION_REPLAY_ENABLED",
+            "RUM_CONSOLE_CAPTURE",
+            "RUM_ADVANCED_NETWORK_CAPTURE",
+            "RUM_SAMPLE_RATE",
+            "ENDPOINTS",
+            "PROXY",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "ANYSCALE_API_KEY",
+            "APIPIE_API_KEY",
+            "COHERE_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DATABRICKS_API_KEY",
+            "FIREWORKS_API_KEY",
+            "GROQ_API_KEY",
+            "HUGGINGFACE_TOKEN",
+            "MISTRAL_API_KEY",
+            "OPENROUTER_KEY",
+            "PERPLEXITY_API_KEY",
+            "SHUTTLEAI_API_KEY",
+            "TOGETHERAI_API_KEY",
+            "UNIFY_API_KEY",
+            "XAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_MODELS",
+            "ANTHROPIC_REVERSE_PROXY",
+            "ANTHROPIC_USE_VERTEX",
+            "ANTHROPIC_VERTEX_REGION",
+            "AZURE_OPENAI_DEFAULT_MODEL",
+            "AZURE_OPENAI_MODELS",
+            "AZURE_USE_MODEL_AS_DEPLOYMENT_NAME",
+            "AZURE_API_KEY",
+            "AZURE_OPENAI_API_INSTANCE_NAME",
+            "AZURE_OPENAI_API_DEPLOYMENT_NAME",
+            "AZURE_OPENAI_API_VERSION",
+            "AZURE_OPENAI_API_COMPLETIONS_DEPLOYMENT_NAME",
+            "AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME",
+            "BEDROCK_AWS_DEFAULT_REGION",
+            "BEDROCK_AWS_PROFILE",
+            "BEDROCK_AWS_ACCESS_KEY_ID",
+            "BEDROCK_AWS_SECRET_ACCESS_KEY",
+            "BEDROCK_AWS_SESSION_TOKEN",
+            "BEDROCK_AWS_BEARER_TOKEN",
+            "BEDROCK_AWS_MODELS",
+            "GOOGLE_KEY",
+            "GOOGLE_REVERSE_PROXY",
+            "GOOGLE_AUTH_HEADER",
+            "GOOGLE_MODELS",
+            "GOOGLE_TITLE_MODEL",
+            "GOOGLE_LOC",
+            "GOOGLE_CLOUD_LOCATION",
+            "GOOGLE_SERVICE_KEY_FILE",
+            "GOOGLE_SAFETY_SEXUALLY_EXPLICIT",
+            "GOOGLE_SAFETY_HATE_SPEECH",
+            "GOOGLE_SAFETY_HARASSMENT",
+            "GOOGLE_SAFETY_DANGEROUS_CONTENT",
+            "GOOGLE_SAFETY_CIVIC_INTEGRITY",
+            "GEMINI_API_KEY",
+            "GEMINI_IMAGE_MODEL",
+            "OPENAI_API_KEY",
+            "OPENAI_MODELS",
+            "DEBUG_OPENAI",
+            "TITLE_CONVO",
+            "OPENAI_TITLE_MODEL",
+            "OPENAI_SUMMARIZE",
+            "OPENAI_SUMMARY_MODEL",
+            "OPENAI_FORCE_PROMPT",
+            "OPENAI_REVERSE_PROXY",
+            "OPENAI_ORGANIZATION",
+            "ASSISTANTS_API_KEY",
+            "ASSISTANTS_BASE_URL",
+            "ASSISTANTS_MODELS",
+            "CREDS_KEY",
+            "CREDS_IV",
+            "AZURE_AI_SEARCH_SERVICE_ENDPOINT",
+            "AZURE_AI_SEARCH_INDEX_NAME",
+            "AZURE_AI_SEARCH_API_KEY",
+            "AZURE_AI_SEARCH_API_VERSION",
+            "AZURE_AI_SEARCH_SEARCH_OPTION_QUERY_TYPE",
+            "AZURE_AI_SEARCH_SEARCH_OPTION_TOP",
+            "AZURE_AI_SEARCH_SEARCH_OPTION_SELECT",
+            "IMAGE_GEN_OAI_API_KEY",
+            "IMAGE_GEN_OAI_BASEURL",
+            "IMAGE_GEN_OAI_AZURE_API_VERSION",
+            "IMAGE_GEN_OAI_MODEL",
+            "IMAGE_GEN_OAI_DESCRIPTION",
+            "IMAGE_EDIT_OAI_DESCRIPTION",
+            "IMAGE_GEN_OAI_PROMPT_DESCRIPTION",
+            "IMAGE_EDIT_OAI_PROMPT_DESCRIPTION",
+            "FLUX_API_BASE_URL",
+            "FLUX_API_KEY",
+            "GOOGLE_SEARCH_API_KEY",
+            "GOOGLE_CSE_ID",
+            "SD_WEBUI_URL",
+            "TAVILY_API_KEY",
+            "TRAVERSAAL_API_KEY",
+            "WOLFRAM_APP_ID",
+            "ZAPIER_NLA_API_KEY",
+            "SEARCH",
+            "MEILI_NO_ANALYTICS",
+            "MEILI_HOST",
+            "MEILI_MASTER_KEY",
+            "MEILI_NO_SYNC",
+            "STT_API_KEY",
+            "TTS_API_KEY",
+            "LIBRECHAT_CODE_API_KEY",
+            "CODE_ENVIRONMENT_DECISION_VERSION",
+            "LIBRECHAT_CODE_BASEURL",
+            "CODEAPI_AUTH_PROVIDER",
+            "CODEAPI_JWT_ENABLED",
+            "CODEAPI_JWT_PRIVATE_KEY",
+            "CODEAPI_JWT_PRIVATE_KEY_BASE64",
+            "CODEAPI_JWT_PRIVATE_JWK_JSON",
+            "CODEAPI_JWT_ALGORITHM",
+            "CODEAPI_JWT_KID",
+            "CODEAPI_JWT_ISSUER",
+            "CODEAPI_JWT_AUDIENCE",
+            "CODEAPI_JWT_TTL_SECONDS",
+            "CODEAPI_JWT_MINT_CACHE_SECONDS",
+            "CODEAPI_JWT_SINGLE_TENANT_ID",
+            "TENANT_ISOLATION_STRICT",
+            "LIBRECHAT_CODE_BASEURL_STATEFUL",
+            "CODE_SANDBOX_PREWARM",
+            "CODE_SANDBOX_COLD_AFTER_MS",
+            "LIBRECHAT_CODE_SANDBOX_OUTPUT_MAX_SIZE",
+            "LIBRECHAT_CODE_IMAGE_CHUNK_BYTES",
+            "RAG_API_URL",
+            "RAG_OPENAI_BASEURL",
+            "RAG_OPENAI_API_KEY",
+            "RAG_USE_FULL_CONTEXT",
+            "EMBEDDINGS_PROVIDER",
+            "EMBEDDINGS_MODEL",
+            "FILE_UPLOAD_SSE_ENABLED",
+            "REMOTE_FILE_FETCH_TIMEOUT_MS",
+            "REMOTE_FILE_FETCH_MAX_BYTES",
+            "STEER_MAX_LENGTH",
+            "OPENAI_MODERATION",
+            "OPENAI_MODERATION_API_KEY",
+            "OPENAI_MODERATION_REVERSE_PROXY",
+            "BAN_VIOLATIONS",
+            "BAN_DURATION",
+            "BAN_INTERVAL",
+            "VIOLATION_SCORE_TTL",
+            "LOGIN_VIOLATION_SCORE",
+            "REGISTRATION_VIOLATION_SCORE",
+            "CONCURRENT_VIOLATION_SCORE",
+            "MESSAGE_VIOLATION_SCORE",
+            "NON_BROWSER_VIOLATION_SCORE",
+            "TTS_VIOLATION_SCORE",
+            "STT_VIOLATION_SCORE",
+            "FORK_VIOLATION_SCORE",
+            "IMPORT_VIOLATION_SCORE",
+            "SHARE_VIOLATION_SCORE",
+            "FILE_UPLOAD_VIOLATION_SCORE",
+            "SHARE_IP_MAX",
+            "SHARE_IP_WINDOW",
+            "SHARE_USER_MAX",
+            "SHARE_USER_WINDOW",
+            "FILE_USAGE_USER_MAX",
+            "FILE_USAGE_USER_WINDOW",
+            "RESET_PASSWORD_VIOLATION_SCORE",
+            "VERIFY_EMAIL_VIOLATION_SCORE",
+            "RESET_PASSWORD_SUBMISSION_VIOLATION_SCORE",
+            "VERIFY_EMAIL_SUBMISSION_VIOLATION_SCORE",
+            "LOGIN_MAX",
+            "LOGIN_WINDOW",
+            "REGISTER_MAX",
+            "REGISTER_WINDOW",
+            "TWO_FACTOR_TEMP_MAX",
+            "TWO_FACTOR_TEMP_WINDOW",
+            "TWO_FACTOR_SETUP_MAX",
+            "TWO_FACTOR_SETUP_WINDOW",
+            "RESET_PASSWORD_MAX",
+            "RESET_PASSWORD_WINDOW",
+            "RESET_PASSWORD_SUBMISSION_MAX",
+            "RESET_PASSWORD_SUBMISSION_WINDOW",
+            "VERIFY_EMAIL_MAX",
+            "VERIFY_EMAIL_WINDOW",
+            "VERIFY_EMAIL_SUBMISSION_MAX",
+            "VERIFY_EMAIL_SUBMISSION_WINDOW",
+            "PASSKEY_STEPUP_MAX",
+            "PASSKEY_STEPUP_WINDOW",
+            "LIMIT_CONCURRENT_MESSAGES",
+            "CONCURRENT_MESSAGE_MAX",
+            "LIMIT_MESSAGE_IP",
+            "MESSAGE_IP_MAX",
+            "MESSAGE_IP_WINDOW",
+            "LIMIT_MESSAGE_USER",
+            "MESSAGE_USER_MAX",
+            "MESSAGE_USER_WINDOW",
+            "ILLEGAL_MODEL_REQ_SCORE",
+            "CHECK_BALANCE",
+            "START_BALANCE",
+            "ALLOW_EMAIL_LOGIN",
+            "ALLOW_EMAIL_LOGIN_OVERRIDE",
+            "ALLOW_REGISTRATION",
+            "ALLOW_SOCIAL_LOGIN",
+            "ALLOW_SOCIAL_REGISTRATION",
+            "ALLOW_PASSWORD_RESET",
+            "ALLOW_ACCOUNT_DELETION",
+            "ALLOW_EMAIL_CHANGE",
+            "ALLOW_UNVERIFIED_EMAIL_LOGIN",
+            "ENFORCE_TWO_FACTOR_AUTHENTICATION",
+            "TWO_FACTOR_BACKUP_CODE_FORMAT",
+            "SESSION_EXPIRY",
+            "REFRESH_TOKEN_EXPIRY",
+            "SESSION_COOKIE_SECURE",
+            "JWT_SECRET",
+            "JWT_REFRESH_SECRET",
+            "DISCORD_CLIENT_ID",
+            "DISCORD_CLIENT_SECRET",
+            "DISCORD_CALLBACK_URL",
+            "FACEBOOK_CLIENT_ID",
+            "FACEBOOK_CLIENT_SECRET",
+            "FACEBOOK_CALLBACK_URL",
+            "GITHUB_CLIENT_ID",
+            "GITHUB_CLIENT_SECRET",
+            "GITHUB_CALLBACK_URL",
+            "GITHUB_ENTERPRISE_BASE_URL",
+            "GITHUB_ENTERPRISE_USER_AGENT",
+            "GOOGLE_CLIENT_ID",
+            "GOOGLE_CLIENT_SECRET",
+            "GOOGLE_CALLBACK_URL",
+            "APPLE_CLIENT_ID",
+            "APPLE_TEAM_ID",
+            "APPLE_KEY_ID",
+            "APPLE_PRIVATE_KEY_PATH",
+            "APPLE_CALLBACK_URL",
+            "ALLOW_PASSKEY_LOGIN",
+            "MAX_PASSKEYS_PER_USER",
+            "PASSKEY_RP_ID",
+            "PASSKEY_RP_NAME",
+            "PASSKEY_ORIGINS",
+            "OPENID_CLIENT_ID",
+            "OPENID_CLIENT_SECRET",
+            "OPENID_ISSUER",
+            "OPENID_SESSION_SECRET",
+            "OPENID_SCOPE",
+            "OPENID_CALLBACK_URL",
+            "OPENID_REQUIRED_ROLE",
+            "OPENID_REQUIRED_ROLE_TOKEN_KIND",
+            "OPENID_REQUIRED_ROLE_PARAMETER_PATH",
+            "OPENID_ADMIN_ROLE",
+            "OPENID_ADMIN_ROLE_PARAMETER_PATH",
+            "OPENID_ADMIN_ROLE_TOKEN_KIND",
+            "OPENID_ROLE_SYNC_ENABLED",
+            "OPENID_ROLE_SYNC_API_ENABLED",
+            "OPENID_ROLE_SYNC_SOURCE",
+            "OPENID_ROLE_SYNC_CLAIM",
+            "OPENID_ROLE_SYNC_ROLE_PRIORITY",
+            "OPENID_ROLE_SYNC_FALLBACK_ROLE",
+            "OPENID_USERNAME_CLAIM",
+            "OPENID_NAME_CLAIM",
+            "OPENID_EMAIL_CLAIM",
+            "OPENID_AUDIENCE",
+            "OPENID_REFRESH_AUDIENCE",
+            "OPENID_BUTTON_LABEL",
+            "OPENID_IMAGE_URL",
+            "OPENID_AUTO_REDIRECT",
+            "OPENID_USE_PKCE",
+            "OPENID_REUSE_TOKENS",
+            "OPENID_REUSE_MAX_SESSION_AGE_MS",
+            "OPENID_DISCOVERY_RETRY_ATTEMPTS",
+            "OPENID_DISCOVERY_RETRY_DELAY_MS",
+            "OPENID_REFRESH_BRIDGE_GRACE_MS",
+            "OPENID_JWKS_URL_CACHE_ENABLED",
+            "OPENID_JWKS_URL_CACHE_TIME",
+            "OPENID_ON_BEHALF_FLOW_FOR_USERINFO_REQUIRED",
+            "OPENID_ON_BEHALF_FLOW_USERINFO_SCOPE",
+            "OPENID_USE_END_SESSION_ENDPOINT",
+            "OPENID_POST_LOGOUT_REDIRECT_URI",
+            "OPENID_MAX_LOGOUT_URL_LENGTH",
+            "ENABLE_SHAREPOINT_FILEPICKER",
+            "SHAREPOINT_BASE_URL",
+            "SHAREPOINT_PICKER_SHAREPOINT_SCOPE",
+            "SHAREPOINT_PICKER_GRAPH_SCOPE",
+            "SAML_ENTRY_POINT",
+            "SAML_ISSUER",
+            "SAML_CERT",
+            "SAML_CALLBACK_URL",
+            "SAML_SESSION_SECRET",
+            "SAML_NAME_ID_FORMAT",
+            "SAML_IDP_ISSUER",
+            "SAML_EMAIL_CLAIM",
+            "SAML_USERNAME_CLAIM",
+            "SAML_GIVEN_NAME_CLAIM",
+            "SAML_FAMILY_NAME_CLAIM",
+            "SAML_PICTURE_CLAIM",
+            "SAML_NAME_CLAIM",
+            "SAML_BUTTON_LABEL",
+            "SAML_IMAGE_URL",
+            "SAML_USE_AUTHN_RESPONSE_SIGNED",
+            "USE_ENTRA_ID_FOR_PEOPLE_SEARCH",
+            "ENTRA_ID_INCLUDE_OWNERS_AS_MEMBERS",
+            "OPENID_GRAPH_SCOPES",
+            "GRAPH_API_SCOPES",
+            "LDAP_URL",
+            "LDAP_BIND_DN",
+            "LDAP_BIND_CREDENTIALS",
+            "LDAP_USER_SEARCH_BASE",
+            "LDAP_SEARCH_FILTER",
+            "LDAP_CA_CERT_PATH",
+            "LDAP_TLS_REJECT_UNAUTHORIZED",
+            "LDAP_STARTTLS",
+            "LDAP_LOGIN_USES_USERNAME",
+            "LDAP_ID",
+            "LDAP_USERNAME",
+            "LDAP_EMAIL",
+            "LDAP_FULL_NAME",
+            "EMAIL_SERVICE",
+            "EMAIL_HOST",
+            "EMAIL_PORT",
+            "EMAIL_ENCRYPTION",
+            "EMAIL_ENCRYPTION_HOSTNAME",
+            "EMAIL_ALLOW_SELFSIGNED",
+            "EMAIL_USERNAME",
+            "EMAIL_PASSWORD",
+            "EMAIL_FROM_NAME",
+            "EMAIL_FROM",
+            "MAILGUN_API_KEY",
+            "MAILGUN_DOMAIN",
+            "MAILGUN_HOST",
+            "FIREBASE_API_KEY",
+            "FIREBASE_AUTH_DOMAIN",
+            "FIREBASE_PROJECT_ID",
+            "FIREBASE_STORAGE_BUCKET",
+            "FIREBASE_MESSAGING_SENDER_ID",
+            "FIREBASE_APP_ID",
+            "AWS_ENDPOINT_URL",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_REGION",
+            "AWS_BUCKET_NAME",
+            "AWS_FORCE_PATH_STYLE",
+            "CLOUDFRONT_KEY_PAIR_ID",
+            "CLOUDFRONT_PRIVATE_KEY",
+            "AZURE_STORAGE_CONNECTION_STRING",
+            "AZURE_STORAGE_PUBLIC_ACCESS",
+            "AZURE_CONTAINER_NAME",
+            "ALLOW_SHARED_LINKS",
+            "ALLOW_SHARED_LINKS_PUBLIC",
+            "SHARED_LINKS_SNAPSHOT_FILES",
+            "STATIC_CACHE_MAX_AGE",
+            "STATIC_CACHE_S_MAX_AGE",
+            "DISABLE_COMPRESSION",
+            "ENABLE_STATIC_ASSET_BROTLI",
+            "ENABLE_IMAGE_OUTPUT_GZIP_SCAN",
+            "APP_TITLE",
+            "CUSTOM_FOOTER",
+            "HELP_AND_FAQ_URL",
+            "SHOW_BIRTHDAY_ICON",
+            "ANALYTICS_GTM_ID",
+            "CONVERSATION_IMPORT_MAX_FILE_SIZE_BYTES",
+            "FILE_PREVIEW_MAX_EXTRACT_BYTES",
+            "USE_REDIS",
+            "USE_REDIS_STREAMS",
+            "SCHEDULES_SINGLE_PROCESS",
+            "SCHEDULES_DISABLED",
+            "STREAM_DELTA_COALESCE_MS",
+            "REDIS_URI",
+            "USE_REDIS_CLUSTER",
+            "REDIS_CLUSTER_SAFE_DELETE",
+            "REDIS_CA",
+            "REDIS_USE_ALTERNATIVE_DNS_LOOKUP",
+            "REDIS_USERNAME",
+            "REDIS_PASSWORD",
+            "REDIS_KEY_PREFIX_VAR",
+            "REDIS_KEY_PREFIX",
+            "REDIS_MAX_LISTENERS",
+            "REDIS_READONLY_RECOVERY_INTERVAL",
+            "REDIS_PING_INTERVAL",
+            "REDIS_PING_TIMEOUT",
+            "REDIS_SUBSCRIBER_PING_INTERVAL",
+            "REDIS_KEEP_ALIVE",
+            "FORCED_IN_MEMORY_CACHE_NAMESPACES",
+            "AUTH_USER_CACHE_MODE",
+            "USER_PRINCIPALS_CACHE_TTL_MS",
+            "USER_PRINCIPALS_LOCK_TTL_MS",
+            "USER_PRINCIPALS_LOCK_WAIT_MS",
+            "LEADER_LEASE_DURATION",
+            "LEADER_RENEW_INTERVAL",
+            "LEADER_RENEW_ATTEMPTS",
+            "LEADER_RENEW_RETRY_DELAY",
+            "NODE_ENV",
+            "E2E_USER_EMAIL",
+            "E2E_USER_PASSWORD",
+            "INDEX_CACHE_CONTROL",
+            "INDEX_PRAGMA",
+            "INDEX_EXPIRES",
+            "OPENWEATHER_API_KEY",
+            "SERPER_API_KEY",
+            "KEENABLE_API_KEY",
+            "KEENABLE_API_URL",
+            "KEENABLE_FETCH_URL",
+            "FIRECRAWL_API_KEY",
+            "FIRECRAWL_API_URL",
+            "JINA_API_KEY",
+            "MCP_OAUTH_ON_AUTH_ERROR",
+            "MCP_OAUTH_DETECTION_TIMEOUT",
+            "MCP_OAUTH_HANDLING_TIMEOUT",
+            "MCP_OAUTH_FLOW_TTL",
+            "MCP_CONNECTION_CHECK_TTL",
+            "MCP_STREAMABLE_HTTP_MAX_RESPONSE_BYTES",
+            "MCP_STREAMABLE_HTTP_MAX_LINE_BYTES",
+            "MCP_SKIP_CODE_CHALLENGE_CHECK",
+            "MCP_CB_MAX_CYCLES",
+            "MCP_CB_CYCLE_WINDOW_MS",
+            "MCP_CB_CYCLE_COOLDOWN_MS",
+            "MCP_CB_MAX_FAILED_ROUNDS",
+            "MCP_CB_FAILED_WINDOW_MS",
+            "MCP_CB_BASE_BACKOFF_MS",
+            "MCP_CB_MAX_BACKOFF_MS",
+            "LIBRECHAT_IMAGE_TAG"
+          ],
+          "required_env_count": 559,
+          "capabilities": [
+            "install",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "Open-LLM-VTuber",
+        "name": "Personal assistant + media worker environment",
+        "scope": "Open-LLM-VTuber-main",
+        "posture": "local LLM by default; generation commands gated",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "python": "3.12"
+          },
+          "services": [
+            "ollama"
+          ],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "Scrapling",
+        "name": "Retrieval & scraping environment",
+        "scope": "Scrapling-main",
+        "posture": "no outbound publishing; be selective",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "python": "3.12"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "claude-ads",
+        "name": "Evaluation / ads environment",
+        "scope": "claude-ads-main",
+        "posture": "read-only-ish; denial is final",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "python": "3.12"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check",
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "grok-jev-router",
+        "name": "Classifier / gateway environment",
+        "scope": "grok-jev-router-main",
+        "posture": "pure decision surface; every verdict is an input, not an attestation",
+        "spec": {
+          "exists": true,
+          "toolchains": {},
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "import-check"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "freellmapi",
+        "name": "LLM gateway environment",
+        "scope": "freellmapi-main",
+        "posture": "proxy first, fallback order logged; no spend, no logging of raw secrets",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "node": ">=20.18.0 <25.0.0"
+          },
+          "services": [
+            "cloudflare",
+            "ollama"
+          ],
+          "required_env": [
+            "ENCRYPTION_KEY",
+            "PORT",
+            "HOST",
+            "HOST_BIND",
+            "PROXY_RATE_LIMIT_RPM",
+            "STREAM_KEEPALIVE_MS",
+            "ADMIN_RATE_LIMIT_RPM",
+            "REQUEST_BODY_LIMIT_MB",
+            "MCP_INFERENCE_DEFAULT_MODEL",
+            "MCP_INFERENCE_TIMEOUT_MS",
+            "IMAGE_NORMALIZE",
+            "IMAGE_NORMALIZE_MAX_DIMENSION",
+            "IMAGE_NORMALIZE_THRESHOLD_KB",
+            "IMAGE_NORMALIZE_QUALITY",
+            "PROXY_URL",
+            "ALL_PROXY",
+            "HTTPS_PROXY",
+            "HTTP_PROXY",
+            "PROXY_MODE",
+            "FETCH_RELAY_TOKEN",
+            "NO_PROXY",
+            "PROXY_REQUIRED_PLATFORMS",
+            "FREEAPI_PROXY_LOCAL_DESTINATIONS",
+            "PROVIDER_DAILY_REQUEST_CAP_OPENROUTER",
+            "CLOUDFLARE_DAILY_NEURON_CAP",
+            "CLOUDFLARE_NEURON_ANALYTICS",
+            "PROVIDER_TIMEOUT_NVIDIA",
+            "MODELSCOPE_VALIDATE_CACHE_MS",
+            "PROVIDER_STREAM_STALL_TIMEOUT_MS",
+            "PROVIDER_STREAM_STALL_TIMEOUT_OLLAMA",
+            "HEALTH_CHECK_INTERVAL_MS",
+            "BUDGET_ALERT_WEBHOOK_URL",
+            "MODEL_PROBE_ENABLED",
+            "MODEL_PROBE_MAX_PER_PASS",
+            "FALLBACK_TIME_BUDGET_MS",
+            "SLOW_ENDPOINT_BUFFER_MS",
+            "TTFB_BUDGET_WINDOW_MS",
+            "TTFB_BUDGET_HALF_LIFE_MS",
+            "TTFB_BUDGET_MIN_SAMPLES",
+            "TTFB_BUDGET_DISABLED",
+            "FALLBACK_DETAIL_HEADER",
+            "VALIDATE_TOOL_ARGUMENTS",
+            "REQUEST_MAX_TOKENS_BUDGET",
+            "MAX_CONSECUTIVE_UPSTREAM_FAILS",
+            "RESPONSE_CACHE",
+            "RESPONSE_CACHE_PERSIST",
+            "RESPONSE_CACHE_TTL_SECONDS",
+            "RESPONSE_CACHE_MAX_TEMPERATURE",
+            "RESPONSE_CACHE_MAX_ENTRIES",
+            "FREELLMAPI_COMPRESSION",
+            "FREEAPI_BLOCK_PRIVATE_PROVIDER_URLS",
+            "REQUEST_ANALYTICS_RETENTION_DAYS",
+            "REQUEST_ANALYTICS_MAX_ROWS",
+            "QUOTA_OBSERVATIONS_RETENTION_DAYS",
+            "QUOTA_OBSERVATIONS_MAX_ROWS",
+            "SERVER_LOGS_RETENTION_DAYS",
+            "SERVER_LOGS_MAX_ROWS",
+            "SEARCH_LOGS_RETENTION_DAYS",
+            "SEARCH_LOGS_MAX_ROWS",
+            "DECISION_LOGS_RETENTION_DAYS",
+            "DECISION_LOGS_MAX_ROWS",
+            "REQUEST_ANALYTICS_LOG_CLIENT",
+            "FREEAPI_DB_PATH",
+            "FREEAPI_DB_DIR_HARDENING",
+            "FREEAPI_DB_BACKUP_PATH",
+            "FREEAPI_DB_BACKUP_URL",
+            "FREEAPI_DB_BACKUP_TOKEN",
+            "FREEAPI_DB_BACKUP_KEY",
+            "FREEAPI_DB_BACKUP_INTERVAL_MS",
+            "AUTO_BACKUP_DUMP_RETENTION",
+            "FREEAPI_CONFIG_PATH",
+            "FREEAPI_CONFIG_JSON",
+            "FREELLMAPI_CONTEXT_HANDOFF",
+            "FREELLMAPI_UPDATE_CHECK",
+            "FREELLMAPI_UPDATE_GITHUB_TOKEN",
+            "WATCHTOWER_TOKEN",
+            "DASHBOARD_ORIGINS",
+            "CSP_UPGRADE_INSECURE_REQUESTS",
+            "TRUST_PROXY",
+            "ALLOWED_HOSTS",
+            "MODEL_ROUTING_OVERRIDES",
+            "CLIENT_DIST",
+            "FREEAPI_ENV_PATH"
+          ],
+          "required_env_count": 83,
+          "capabilities": [
+            "install",
+            "dev",
+            "build",
+            "test"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "hyperframes",
+        "name": "Video render environment",
+        "scope": "hyperframes-main",
+        "posture": "renders only; output must be reviewed before distribution",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "node": ">=18",
+            "bun": "1.4.4"
+          },
+          "services": [],
+          "required_env": [
+            "GEMINI_API_KEY"
+          ],
+          "required_env_count": 1,
+          "capabilities": [
+            "install",
+            "dev",
+            "build",
+            "test"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      },
+      {
+        "component": "Open-Higgsfield-AI",
+        "name": "Image/media generation environment",
+        "scope": "Open-Higgsfield-AI-main",
+        "posture": "generation-only; nothing about generated media is truth until humans review",
+        "spec": {
+          "exists": true,
+          "toolchains": {
+            "node": ">=18"
+          },
+          "services": [],
+          "required_env": [],
+          "required_env_count": 0,
+          "capabilities": [
+            "install",
+            "dev",
+            "build"
+          ],
+          "constitution_hash": "ac50b7a50f27"
+        }
+      }
+    ],
+    "loop_steps": 9,
+    "production": [
+      {
+        "concern": "Observability",
+        "status": "realized"
+      },
+      {
+        "concern": "Evaluation",
+        "status": "realized"
+      },
+      {
+        "concern": "Guardrails",
+        "status": "realized"
+      },
+      {
+        "concern": "Agent identity",
+        "status": "realized"
+      },
+      {
+        "concern": "LLM gateway",
+        "status": "gap"
+      }
+    ],
+    "protocol": {
+      "mcp": "implemented",
+      "a2a": "not_implemented",
+      "function_calling": "implemented"
+    },
+    "semantic_gaps": 3,
+    "data_products": {
+      "count": 10,
+      "governed": 10,
+      "unavailable": []
+    },
+    "governance": {
+      "access": "enforced",
+      "audit": "append_only",
+      "privacy": "partial",
+      "lineage": "recorded"
+    },
+    "engineering_kinds": [
+      "context_assembly",
+      "decision",
+      "generation",
+      "verification",
+      "action",
+      "memory_write"
+    ]
+  },
+  "gaps": [
+    {
+      "layer": "Foundation models",
+      "gap": "There is no in-process model gateway. Model work belongs to the freellmapi/grok-jev-router components, and this engine attests reasoning rather than performing it."
+    },
+    {
+      "layer": "Agent frameworks",
+      "gap": "Single-process orchestration; no durable execution across restarts beyond run replay."
+    },
+    {
+      "layer": "Tools and protocols",
+      "gap": "MCP is implemented (one shared server); A2A is not. Agent-to-agent handoff is mediated by the router and admin, not a peer protocol."
+    },
+    {
+      "layer": "Memory and knowledge",
+      "gap": "No embedding index or vector store. Retrieval is metadata and keyword lookup over local stores, so similarity search is designed but not implemented."
+    },
+    {
+      "layer": "Agent runtime and hosting",
+      "gap": "No container orchestrator. Replication is registry-level (an agent record plus a reporting edge), not a new isolated process."
+    },
+    {
+      "layer": "Interface and UI",
+      "gap": "Single local dashboard and JSON API; no public or multi-tenant surface."
+    },
+    {
+      "layer": "protocol:a2a",
+      "gap": "No peer agent-to-agent protocol, discovery, or capability negotiation. Handoffs are hierarchical, which is deliberate, but it is not A2A."
+    },
+    {
+      "layer": "semantic",
+      "gap": "No ontology or knowledge graph store; relationships are code-level conventions."
+    },
+    {
+      "layer": "semantic",
+      "gap": "No business glossary data product; the glossary above is curated, not queryable."
+    },
+    {
+      "layer": "semantic",
+      "gap": "No vector embeddings, so 'similar meaning' is lexical today."
+    }
+  ],
+  "replication": {
+    "order": [
+      "Social and Welfare",
+      "Business and Trade",
+      "Politics and Governance",
+      "Science and Research",
+      "Religious and Mystical Organization"
+    ],
+    "assignment": "compartment-agnostic: any workflow may staff any compartment",
+    "decision": "necessity is decided per run by decide_compartments (hints, goal evidence, signals); default threshold 2.0",
+    "rule": "achievement attestation -> necessity decision -> selected compartments only, in canonical order",
+    "fail_closed": [
+      "no achievement attestation -> no cascade",
+      "closed stage gate -> DAG stops, downstream stages skipped",
+      "no compartment above threshold -> no cascade",
+      "first failed spawn -> cascade halts; remaining compartments skipped",
+      "no funding/settlement in this engine"
+    ],
+    "decider_seam": "pass a custom decider (e.g. LLM/agent-backed) to decide_compartments; output is normalized and validated"
+  },
+  "docs": "workflows/README.md",
+  "source": "workflows/catalogue.json",
+  "exported_at": "2026-11-20T10:12:21.233697+00:00"
+}

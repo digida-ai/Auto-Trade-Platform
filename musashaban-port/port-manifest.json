@@ -1,0 +1,26 @@
+{
+  "source": "D:\\AI\\automation\\musashaban",
+  "destination": "AutoTrading-Ideal-Platform/musashaban-port",
+  "ported": [
+    "constitution.md",
+    "soul.md",
+    "access-methods.md",
+    "paywall-funding.md",
+    "automaton-model.md",
+    "README.md",
+    "port-manifest.json"
+  ],
+  "secrets_copied": false,
+  "notes": [
+    "Rules/constitution ported from musashaban constitution and core principles.",
+    "Soul model ported from SOUL.md/soul system structure and adapted for admin+eagents.",
+    "Access methods abstracted from identity/provisioning/wallet/auth/device-OTP patterns; no live credentials.",
+    "Paywall/funding methods ported from earning/paywall/settlement/survival/pay_configs methods and adapted to Pix/African rails and 0-funding trading.",
+    "Automaton state/reporting model adapted from agent/lifecycle/survival concepts for orchestrated eagents reporting to admin."
+  ],
+  "integration": {
+    "admin_authority": ["erect_paywalls", "settle", "fund"],
+    "reporting": "every eagent reports to admin; admin aggregates and reports to operator/audit",
+    "zero_funding": "fail-closed, no capital assumed; prefer paper/demo/testnet/backtest/simulation and realized-revenue-before-spend"
+  }
+}
