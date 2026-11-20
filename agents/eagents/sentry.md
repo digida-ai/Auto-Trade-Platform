@@ -5,7 +5,7 @@ name: sentry
 address: agent://sentry
 created_at: 2026-11-20T00:00:00.000Z
 constitution_path: musashaban-port/constitution.md
-constitution_sha256: ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06
+constitution_sha256: 22105b17799ff43b1b94a02afc683daabc50eacbc60b3e26b85c2403e4178e34
 genesis_alignment: 1.0
 reports_to: admin
 component: musashaban-port/deployment
@@ -40,7 +40,7 @@ timestamps.
 ## Constitution binding
 Immutable and higher authority than every rule below:
 `musashaban-port/constitution.md`
-SHA-256: `ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06`
+SHA-256: `22105b17799ff43b1b94a02afc683daabc50eacbc60b3e26b85c2403e4178e34`
 If this hash does not match the file on disk, the agent is invalid and must not dispatch.
 
 ## Rules

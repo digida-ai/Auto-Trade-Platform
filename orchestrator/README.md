@@ -16,9 +16,9 @@ capabilities (shell/files) scoped to the platform.
 - **Admin authority (fail-closed, 0-funding by default):** admin erects
   paywalls, settles, and funds only from realized/authorized resources/policy
   (settlement/funding rails include Pix-Payment-System African/PIX variants when
-  configured). No capital assumed; prefer paper/demo/testnet/backtest/simulation
-  and free tiers; no real-capital trades without verified funds/keys/accounts
-  and confirmation.
+  configured). No capital assumed; live only — no paper, demo, testnet, backtest,
+  simulation or free-tier stand-ins. No capital movement without verified
+  funds/keys/accounts and confirmation; otherwise fail closed.
 
 ## Start
 
@@ -39,6 +39,23 @@ python -m orchestrator
 ```
 
 Or double-click/run `start-orchestrator.bat` in the platform root.
+
+### Boot activation
+
+At startup admin surveys every component and then **turns the preset directives
+into real runs** — boot is not a survey that leaves directives as inert text:
+
+- `blocked`/`needs_setup` components are sent a real `initialize` run, which
+  executes `scripts/init-platform.js --component <name>` against that component.
+- `ready` components receive a manifest-derived command (build/test/check/lint,
+  otherwise a real import or compile check) run in the manifest's own directory.
+- Every activation is a durable run with live output and automaton transitions;
+  an install is only reported complete when the component re-checks as ready.
+- No simulated success: a missing manifest, a failed command or an unavailable
+  rail is reported as skipped/blocked with the actual evidence.
+
+`GET /activation` shows the last boot's activation report; `POST /activate`
+re-issues it on demand (`{"targets": [...], "auto_init": true|false}`).
 
 Environment (optional):
 - `ORCHESTRATOR_HOST` (default `127.0.0.1`)
@@ -62,6 +79,9 @@ Environment (optional):
 - `GET /runs/{id}/reports` — reports for a specific run
 - `GET /components` — per-subplatform readiness (toolchains, dependencies, manifests, submodules, duplicate copies)
 - `GET /components/{name}` — readiness for one subplatform
+- `GET /bootup` — last boot survey and automation scope
+- `GET /activation` — activation report from the last boot (directives → real runs)
+- `POST /activate` — re-issue boot directives as real runs; `{targets?, auto_init?}`
 - `GET /observability` — watchdog status and active alerts
 - `GET /alerts` — alerts (`?active=1` for active only)
 - `GET /skills` — discovered skills; `GET /skills/{id}` for one skill

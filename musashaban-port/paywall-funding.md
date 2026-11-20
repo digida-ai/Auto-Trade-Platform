@@ -5,8 +5,8 @@ Ported from musashaban earning/paywall/settlement/survival patterns and adapted 
 ## 1. Fail-closed economic model
 
 - Do not spend money that does not exist; do not enable paid rails/channels/settlements without required credentials, float, or realized revenue.
-- Gate progression by verified conditions (e.g. revenue > 0, float > 0, paired device present, credentials valid). When unmet, remain in zero-capital/simulation mode and report blockers.
-- 0-funding means: **no capital assumed**. Prefer paper/demo/testnet/backtest/simulation and free tiers; generate or prove value before paid operations.
+- Gate progression by verified conditions (e.g. revenue > 0, float > 0, paired device present, credentials valid). When unmet, fail closed on paid action and report blockers.
+- 0-funding means: **no capital assumed** and live-only operation. No demo, testnet, backtest, simulation or free-tier stand-ins; generate or prove real value before paid operations.
 
 ## 2. Paywall-building methods (admin responsibility)
 
@@ -33,12 +33,12 @@ Admin is responsible for erecting paywalls (honest, value-backed offers). Method
 
 - **Settlement routing**: select viable rail based on availability, credentials, float/balance, fees, and policy (e.g. RudiPay/router-faucet float, GSMA/aggregator, on-chain, PIX/mobile money). No route without capacity/authorization.
 - **Auto-settlement**: when realized net revenue exceeds configured threshold (and reserves satisfied), settle surplus to designated/authorized destination on the designated rail; idempotent and auditable.
-- **Funding allocation**: fund operations/agents only from realized, authorized surplus per policy (reserve first). In **0-funding mode**, do not allocate nonexistent capital; instead authorize zero-capital actions (paper/demo/backtest/sim) and unblock paid actions only after revenue/float conditions are met.
+- **Funding allocation**: fund operations/agents only from realized, authorized surplus per policy (reserve first). In **0-funding mode**, do not allocate nonexistent capital; authorize only real zero-capital actions and unblock paid actions after revenue/float conditions are met.
 - **Notifications**: prefer free/local audit logs; enable paid outbound notifications only when policy allows and conditions (e.g. realized earnings) are satisfied.
 
 ## 4. 0-funding bootstrap (trading & platform)
 
-- **Trading**: discover and run paper/demo/testnet/backtest/simulation/dry-run paths across trading subplatforms; use free data/LLM/analysis enablers where available; never place real-capital trades without funds/keys/accounts.
+- **Trading**: run real local/offline analysis paths across trading subplatforms; no demo, testnet, backtest, simulation or dry-run stand-ins; never place real-capital trades without funds/keys/accounts.
 - **Revenue path**: create legitimate offerings, erect paywalls, collect/settle via authorized rails, then fund expansion — admin-controlled, constitution-compliant, fully reported.
 - **State discipline**: track funding state (unfunded/float-funded/revenue-funded), realized vs expected, and gate transitions accordingly.
 

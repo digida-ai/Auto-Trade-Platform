@@ -84,16 +84,16 @@ agent runtime:
   idempotent and auditable. Fail closed if conditions unmet.
 - **Fund** — allocate only realized, authorized surplus per policy (reserve
   first). **0-funding mode:** do not allocate nonexistent capital; authorize
-  zero-capital actions (paper/demo/backtest/sim/free tiers) and unblock paid
+  real zero-capital actions and unblock paid
   actions only after verified revenue/float/authorization.
 - Eagents do **not** unilaterally spend, settle, fund, or erect platform
   paywalls; they surface signals and **report to admin**.
 
 ## 0-funding bootstrap (trading and platform)
 
-- Assume no capital/paid accounts/keys by default. Discover and run
-  paper/demo/testnet/backtest/simulation/dry-run/free-tier paths across trading
-  subplatforms; use free data/LLM/analysis enablers where available.
+- Assume no capital/paid accounts/keys by default. Operate live only: no demo,
+  testnet, backtest, simulation, dry-run or free-tier stand-ins. Use real local
+  analysis and offline-capable components where available.
 - Never place real-capital trades or claim realized funding without verified
   funds/keys/accounts and explicit confirmation.
 - Revenue path (when appropriate): create legitimate offerings → erect paywalls →

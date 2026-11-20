@@ -1,14 +1,15 @@
-"""PIX payment system — Python variant of PixService.java."""
+"""PIX payment system — Python variant of PixService.java.
+
+No sample debtors or fixed output paths: the payer and QR destination are
+supplied by the caller, and missing data fails closed.
+"""
 
 import base64
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from .credentials import Credentials
 from .efi_client import EfiPay
-
-INFO_ADICIONAIS = [
-    {"nome": "Campo 1", "valor": "Informação Adicional1 do PSP-Recebedor"},
-    {"nome": "Campo 2", "valor": "Informação Adicional2 do PSP-Recebedor"},
-]
 
 
 class PixService:
@@ -31,25 +32,42 @@ class PixService:
         efi = EfiPay(self._options())
         return efi.call("pixCreateEvp", {}, {})
 
-    def pix_create_charge(self, chave, valor):
+    def pix_create_charge(
+        self,
+        chave: str,
+        valor: Any,
+        devedor: Dict[str, Any],
+        info_adicionais: Optional[list] = None,
+        expiracao: int = 3600,
+    ):
+        """Create an immediate charge. `devedor` must be a real payer identity."""
+        if not chave or not devedor:
+            raise ValueError("pix_create_charge requires chave and devedor")
         body = {
-            "calendario": {"expiracao": 3600},
-            "devedor": {"cpf": "12345678909", "nome": "Francisco da Silva"},
+            "calendario": {"expiracao": expiracao},
+            "devedor": devedor,
             "valor": {"original": valor},
             "chave": chave,
-            "infoAdicionais": INFO_ADICIONAIS,
         }
+        if info_adicionais:
+            body["infoAdicionais"] = info_adicionais
         efi = EfiPay(self._options())
         response = efi.call("pixCreateImmediateCharge", {}, body)
         loc_id = response.get("loc", {}).get("id")
-        if loc_id is not None:
-            self.pix_generate_qr_code(str(loc_id))
-        return response
+        return {"charge": response, "loc_id": str(loc_id) if loc_id is not None else None}
 
-    def pix_generate_qr_code(self, id):
+    def pix_generate_qr_code(self, id: str, output_path: Optional[str] = None) -> str:
+        """Fetch and persist a QR image; the destination must be provided."""
+        if not id:
+            raise ValueError("pix_generate_qr_code requires a location id")
+        if not output_path:
+            raise ValueError("pix_generate_qr_code requires output_path (no fixed artifact)")
         efi = EfiPay(self._options())
         response = efi.call("pixGenerateQRCode", {"id": id}, {})
-        imagem = response.get("imagemQrcode", "").split(",")[-1]
-        with open("qrCodeImage.png", "wb") as f:
-            f.write(base64.b64decode(imagem))
-        return "qrCodeImage.png"
+        imagem = (response.get("imagemQrcode") or "").split(",")[-1]
+        if not imagem:
+            raise ValueError("provider returned no QR image")
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(base64.b64decode(imagem))
+        return str(path)

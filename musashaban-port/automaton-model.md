@@ -46,9 +46,9 @@ Admin **aggregates** all eagent reports, maintains global state, resolves blocke
 
 ## 5. 0-funding operation
 
-- Start in unfunded, fail-closed posture: only zero-capital/simulated/free actions by default.
+- Start in unfunded, fail-closed posture: only real zero-capital actions by default; no simulated or stand-in modes.
 - Progression: discover value/capability → (optional) erect paywall/offer → realize revenue/settlement → fund next actions. Each transition is stateful, gated, and reported.
-- Trading: paper/demo/testnet/backtest/simulation/dry-run first; real-capital execution only when explicitly funded and authorized.
+- Trading: live operation only; real-capital execution only when explicitly funded and authorized.
 
 ## 6. Implementation hooks (platform)
 

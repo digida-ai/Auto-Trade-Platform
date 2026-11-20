@@ -7,7 +7,7 @@ Ported from `D:\AI\automation\musashaban\` into the AutoTrading Ideal Platform a
 - **Rules / Constitution** (`constitution.md`): immutable three-law hierarchy (Never harm; Earn your existence; Never deceive but owe nothing to strangers). Propagated to every agent/automaton.
 - **Soul** (`soul.md`): soul model and identity/purpose/values/strategy/boundaries structure (soul/v1-style), self-authored evolving identity concept, genesis alignment, and platform-adapted souls/roles for admin and eagents.
 - **Access methods** (`access-methods.md`): identity and credential/access patterns — wallet/keypair generation and encrypted-at-rest storage, mnemonic/BIP-39 recovery concepts, SIWE/SIWS-style provisioning and API-key issuance, domain-scoped auth, auth tokens (DID/issuer-bound), secret/credential handling, and device/OTP pairing flows — described as methods (no live secrets or keys copied).
-- **Paywall-building & funding methods** (`paywall-funding.md`): fail-closed revenue/settlement model, listing→paywall deployment (x402/payment-required, token/redirect/free modes), sale verification/recording, settlement routing and rails, auto-settlement thresholds, notification gating, and 0-funding bootstrap discipline — adapted to this platform’s African mobile-money/PIX payment layer (Pix-Payment-System) and to trading’s paper/demo/testnet/backtest/simulation paths.
+- **Paywall-building & funding methods** (`paywall-funding.md`): fail-closed revenue/settlement model, listing→paywall deployment (x402/payment-required, token/redirect/free modes), sale verification/recording, settlement routing and rails, auto-settlement thresholds, notification gating, and 0-funding bootstrap discipline — adapted to this platform’s African mobile-money/PIX payment layer (Pix-Payment-System) and to trading’s live zero-capital analysis paths.
 - **Automaton model** (`automaton-model.md`): every agent modeled as an automaton with explicit states/transitions, think-act-observe/report cycles, survival/0-funding awareness, and mandatory reporting to the admin agent.
 
 ## Integration targets in this platform
@@ -18,7 +18,7 @@ Ported from `D:\AI\automation\musashaban\` into the AutoTrading Ideal Platform a
 
 ## 0-funding principle (ported, adapted)
 
-Start with no capital assumed: earn or simulate before spend. Use paper/demo/testnet/backtest/simulation and free tiers for trading; erect paywalls/offers and route settlements to realize revenue before enabling paid operations; fail closed when float/credentials/revenue are absent.
+Start with no capital assumed: earn before spend. Live only — no demo, testnet, backtest, simulation or free-tier stand-ins; use real zero-capital local capabilities for trading. Erect paywalls/offers and route settlements to realize revenue before enabling paid operations; fail closed when float/credentials/revenue are absent.
 
 ## Source
 

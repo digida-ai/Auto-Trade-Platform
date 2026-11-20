@@ -61,10 +61,11 @@ def bootup_initiative() -> Dict[str, Any]:
 
     Scope is honest: the **control plane** (states, spec validation/auto-generation,
     watchdog, MCP registration, workflow selection/gates, reporting, sentry,
-    funding/settlement ledger) is automated from boot. **Component execution**
-    is not — a subplatform whose readiness is `blocked`/`needs_setup` cannot run
-    work until the operator provisions it, and dispatch fails closed. Blocked
-    components are never reported as automated or successful.
+    funding/settlement ledger) is automated from boot. **Preset directives are
+    also activated** as real runs: ready components get manifest-derived commands
+    and blocked/needs_setup components get a real init run. Results remain gated
+    by readiness — a component whose dependencies are missing is reported blocked
+    from the actual run evidence, never as successful.
     """
     init_automaton_states()
     transition("admin", "waking", None, task="bootup", message="admin taking control at bootup", overlay="bootup")
@@ -147,7 +148,7 @@ def bootup_initiative() -> Dict[str, Any]:
     total = len(report["subplatforms"])
     runnable = report["ready"]
     report["automation"] = {
-        "mode": "control_plane_automated__execution_readiness_gated",
+        "mode": "control_plane_and_activation_automated__results_readiness_gated",
         "autonomous_from_boot": [
             "agent state initialization", "spec validation + auto-generation",
             "watchdog + alerts", "MCP capability registration",
@@ -155,16 +156,18 @@ def bootup_initiative() -> Dict[str, Any]:
             "mandatory eagent->admin->operator reporting",
             "sentry deployment/hosting/security watch",
             "funding ledger + fail-closed spend authorizations",
+            "activation of preset directives into real durable runs (init for blocked, "
+            "manifest-derived commands for ready)",
         ],
         "not_autonomous": [
-            f"component command execution for {total - runnable} of {total} subplatforms "
-            "that are needs_setup/blocked",
+            f"declaring success for {total - runnable} of {total} subplatforms that are "
+            "needs_setup/blocked until their real init run and readiness re-check pass",
             "live capital movement, settlement, deployment or policy changes (operator/human gated)",
         ],
         "claim": (
-            "Bootup automates administration and supervision, not subplatform work. "
-            "Dispatch runs only for ready components; blocked components are reported, "
-            "never silently skipped or faked."
+            "Bootup automates administration, supervision and activation: directives become "
+            "real runs with live evidence. Results are readiness-gated; blocked components "
+            "are reported from actual run output, never silently skipped or faked."
         ),
     }
     report["summary"] = (
@@ -177,9 +180,155 @@ def bootup_initiative() -> Dict[str, Any]:
 
     _LAST_BOOTUP_REPORT.clear()
     _LAST_BOOTUP_REPORT.update(report)
+
+    # Turn the preset directives into real work. Without this, boot only surveys
+    # and the directives remain inert text that fails closed at dispatch.
+    try:
+        report["activation"] = activate_platform(boot_report=report)
+    except Exception as e:
+        report["activation"] = {"error": str(e)}
+
     transition("admin", "idle", None, task="bootup", message="bootup survey complete", overlay=None)
     return report
 
+
+# ============================================================================
+# Boot activation — preset directives become real, executable agent work
+# ============================================================================
+
+
+def _component_boot_command(sp: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Derive a real activation command from the component's own manifests.
+
+    Nested manifests (up to three levels, e.g. Pix's python/ and rust/ variants)
+    are considered. Nothing is hardcoded or faked: a command is returned only
+    when the component actually contains the manifest that justifies it.
+    """
+    comp_dir = component_path(sp)
+    if not comp_dir or not Path(comp_dir).exists():
+        return None
+    comp_dir = Path(comp_dir)
+    skip = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__", ".next", ".turbo", "vendor", ".cache"}
+
+    found: Dict[str, List[Path]] = {}
+    for base, dirs, files in os.walk(comp_dir):
+        depth = len(Path(base).relative_to(comp_dir).parts)
+        dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".") and depth < 3]
+        for filename in files:
+            if filename in {"package.json", "pyproject.toml", "requirements.txt", "Cargo.toml", "pom.xml"}:
+                found.setdefault(filename, []).append(Path(base) / filename)
+
+    def result(command: str, manifest: Path) -> Dict[str, str]:
+        return {"command": command, "cwd": str(manifest.parent)}
+
+    for pkg in sorted(found.get("package.json", [])):
+        try:
+            scripts = (json.loads(read_text(str(pkg)) or "{}").get("scripts") or {})
+            for key in ("build", "test", "check", "lint"):
+                if key in scripts:
+                    return result(f"npm run {key}", pkg)
+        except Exception:
+            pass
+    for manifest in sorted(found.get("pyproject.toml", [])):
+        return result("python -m compileall -q .", manifest)
+    for manifest in sorted(found.get("Cargo.toml", [])):
+        return result("cargo check", manifest)
+    for manifest in sorted(found.get("pom.xml", [])):
+        return result("mvn -q -DskipTests compile", manifest)
+    for pkg in sorted(found.get("package.json", [])):
+        return result("npm ls --depth=0", pkg)
+    for manifest in sorted(found.get("requirements.txt", [])):
+        return result("python -m compileall -q .", manifest)
+    return None
+
+
+def activate_platform(
+    boot_report: Optional[Dict[str, Any]] = None,
+    targets: Optional[List[str]] = None,
+    auto_init: bool = True,
+) -> Dict[str, Any]:
+    """Issue every agent's preset directive as an actual run.
+
+    - Blocked/needs_setup components get a real initialize run (the init script
+      installs their declared dependencies; it fails honestly when it cannot).
+    - Ready components get a manifest-derived command and report real output.
+    All actions are durable runs; no simulated success or placeholder states.
+    """
+    init_automaton_states()
+    transition("admin", "planning", None, task="activation", message="activating agents from preset directives", overlay="planning")
+
+    statuses: Dict[str, Dict[str, Any]] = {}
+    if boot_report:
+        for entry in boot_report.get("subplatforms", []):
+            statuses[entry.get("name")] = entry
+
+    result: Dict[str, Any] = {
+        "phase": "activation",
+        "timestamp": _now(),
+        "issued": [],
+        "initialized": 0,
+        "directed": 0,
+        "skipped": 0,
+        "errors": [],
+    }
+
+    for sp in subplatforms():
+        name = sp.get("name")
+        if targets and name not in targets:
+            continue
+        entry = statuses.get(name) or (component_readiness(name) or {})
+        status = entry.get("status")
+
+        if status == "ready":
+            boot = _component_boot_command(sp)
+            if not boot:
+                result["skipped"] += 1
+                result["errors"].append(f"{name}: no real activation command derivable from manifests")
+                continue
+            payload = {
+                "task": f"ACTIVATION DIRECTIVE: {name} — {boot['command']}",
+                "target": name,
+                "command": boot["command"],
+                "cwd": boot["cwd"],
+                "source": "admin",
+                "timeout": 300,
+            }
+            action = "directive"
+        elif auto_init:
+            payload = {
+                "task": f"initialize {name}",
+                "target": name,
+                "source": "admin",
+                "timeout": 900,
+            }
+            action = "init"
+        else:
+            result["skipped"] += 1
+            continue
+
+        try:
+            run = run_task(payload)
+            result["issued"].append({
+                "agent": name,
+                "action": action,
+                "status": status,
+                "command": payload.get("command"),
+                "cwd": payload.get("cwd"),
+                "run_id": run.get("id"),
+            })
+            if action == "init":
+                result["initialized"] += 1
+            else:
+                result["directed"] += 1
+        except Exception as e:
+            result["errors"].append(f"{name}: {e}")
+
+    result["summary"] = (
+        f"Activation issued: {result['directed']} ready agents directed with real commands, "
+        f"{result['initialized']} blocked agents sent to initialize, {result['skipped']} skipped."
+    )
+    transition("admin", "idle", None, task="activation", message=result["summary"])
+    return result
 
 
 # ============================================================================
@@ -1730,13 +1879,24 @@ def issue_profit_directives(targets: Optional[List[str]] = None) -> Dict[str, An
                 f"Constraints: zero-funding, fail-closed, no live capital without verified funds and authorization. "
                 f"Report progress, blockers, and revenue potential to admin."
             )
+        # A directive without an executable command is inert (it fails closed at
+        # dispatch). Attach a real manifest-derived command, or an init run when
+        # the component has no derivable command yet.
+        sp = get_subplatform(name) or {}
+        boot = _component_boot_command(sp)
         payload = {
             "task": task,
             "target": name,
-            "mode": "initiative",
             "source": "admin",
             "directive": directive,
+            "timeout": 300,
         }
+        if boot:
+            payload["command"] = boot["command"]
+            payload["cwd"] = boot["cwd"]
+        else:
+            payload["task"] = f"initialize {name}"
+            payload["timeout"] = 900
         run = run_task(payload)
         issued.append({
             "agent": name,

@@ -41,6 +41,11 @@ class PaymentGateway:
         return f"{self.base_url}{path}"
 
     def request(self, action: str, payload: Dict[str, Any], method: str = "POST") -> Dict[str, Any]:
+        if not self.base_url:
+            raise PaymentGatewayError(
+                "payment rail is not configured: set PAYMENT_API_BASE_URL (and PAYMENT_API_KEY) "
+                "to a real provider/aggregator endpoint"
+            )
         url = self._resolve(action)
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
         req_headers = {"Content-Type": "application/json", **self.headers}

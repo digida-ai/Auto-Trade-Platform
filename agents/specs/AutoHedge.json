@@ -6,7 +6,7 @@
   "description": "Hedge trading",
   "constitution": {
     "path": "musashaban-port/constitution.md",
-    "sha256": "ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06",
+    "sha256": "22105b17799ff43b1b94a02afc683daabc50eacbc60b3e26b85c2403e4178e34",
     "laws": [
       "I. Never harm",
       "II. Earn your existence",
@@ -124,7 +124,7 @@
     },
     {
       "id": "R11",
-      "rule": "Prefer paper/demo/testnet/backtest/simulation. Real capital requires verified funds, keys, and operator authorization.",
+      "rule": "Operate live only: no paper, demo, testnet, backtest or simulation. Real capital requires verified funds, keys, and operator authorization; otherwise fail closed.",
       "enforcement": "financial rule; zero-funding posture is fail-closed."
     }
   ],

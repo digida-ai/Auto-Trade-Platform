@@ -161,7 +161,8 @@ states and reports. See `orchestrator/README.md` for API details. The dashboard'
 "Subplatform readiness" panel reports, per component, the toolchain and any
 build outputs still needed before it can run.
 
-**0-funding:** no capital/paid accounts assumed by default; prefer paper/demo/
-testnet/backtest/simulation and free tiers. Admin erects paywalls, settles, and
-funds only from realized/authorized resources (Pix-Payment-System provides the
-African mobile-money/PIX rail variants) — fail closed when conditions are unmet.
+**0-funding:** no capital/paid accounts assumed by default; live only — no demo,
+testnet, backtest, simulation or free-tier stand-ins. Admin erects paywalls,
+settles, and funds only from realized/authorized resources (Pix-Payment-System
+provides the African mobile-money/PIX rail variants) — fail closed when
+conditions are unmet.

@@ -38,7 +38,7 @@
     "zero_funding": {
       "enabled": true,
       "default_posture": "fail_closed",
-      "principle": "no capital assumed; earn or simulate before spend; prefer paper/demo/testnet/backtest/simulation/free tiers"
+      "principle": "no capital assumed; earn before spend; live only, no demo/testnet/backtest/simulation/free-tier stand-ins"
     },
     "admin_authority": {
       "erect_paywalls": true,
@@ -181,7 +181,7 @@
   "agent_model": {
     "schema": "eagent/v1",
     "constitution": "musashaban-port/constitution.md",
-    "constitution_sha256": "ac50b7a50f27b55798effd62004d7cfbbc0c9db3cd815d3b57f36b3237193b06",
+    "constitution_sha256": "22105b17799ff43b1b94a02afc683daabc50eacbc60b3e26b85c2403e4178e34",
     "specs_dir": "agents/specs",
     "soul_format": "soul/v1",
     "generated_by": "scripts/generate-agents.js"

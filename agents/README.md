@@ -36,8 +36,8 @@ copied) into `../musashaban-port/`:
 
 - Mandatory reporting line: **eagent → admin → operator/audit** (states,
   transitions, actions, evidence, errors/blockers, funding/paywall/settlement signals).
-- **0-funding principle:** no capital assumed; earn or simulate before spend.
-  Prefer paper/demo/testnet/backtest/simulation and free tiers; fail closed on
+- **0-funding principle:** no capital assumed; earn before spend. Live only — no
+  demo, testnet, backtest, simulation or free-tier stand-ins; fail closed on
   paid/real-capital actions until authorized and funded.
 
 `registry.json` lists every subplatform with its eagent and component directory

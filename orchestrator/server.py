@@ -287,6 +287,8 @@ class Handler(BaseHTTPRequestHandler):
                     "POST /workflows/decide": "compartment necessity decision {goal, workflow?, compartments?, threshold?}",
                     "POST /workflows/execute": "build/attest a run and cascade {goal, workflow?, mode?, achieved?, replicate?, max_replicas?, compartments?, threshold?}",
                     "POST /tasks": "submit task {task, target?, command?, cwd?, timeout?, autorun?} (async, returns run id)",
+                    "POST /activate": "turn preset directives into real runs; {targets?, auto_init?} (async)",
+                    "GET /activation": "activation report from the last boot",
                     "POST /alerts/watchdog": "run the watchdog and persist alerts",
                     "POST /geo/places": "upsert place",
                     "POST /geo/automata": "upsert automaton location",
@@ -334,6 +336,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/bootup":
             try:
                 return _json(self, 200, admin.last_bootup_report())
+            except Exception as e:
+                return _json(self, 500, {"error": str(e)})
+
+        if path == "/activation":
+            try:
+                boot = admin.last_bootup_report()
+                return _json(self, 200, boot.get("activation") or {"ok": False, "error": "no activation at last boot"})
             except Exception as e:
                 return _json(self, 500, {"error": str(e)})
 
@@ -431,6 +440,14 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     target_list = payload.get("targets")
                     return _json(self, 200, admin.issue_profit_directives(targets=target_list))
+                except Exception as e:
+                    return _json(self, 500, {"error": str(e)})
+
+            if path == "/activate":
+                try:
+                    target_list = payload.get("targets")
+                    auto_init = payload.get("auto_init", True)
+                    return _json(self, 200, admin.activate_platform(targets=target_list, auto_init=bool(auto_init)))
                 except Exception as e:
                     return _json(self, 500, {"error": str(e)})
 

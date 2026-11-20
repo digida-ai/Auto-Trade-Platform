@@ -18,3 +18,16 @@ tags: [live, resolution, incidents, operations]
 2. Inspect actual state (runs, agent states, reports, files, skills, manifests, alerts).
 3. Apply corrective action available in live context.
 4. Re-run/verify and report outcome to admin.
+
+## Blocked platforms at boot
+
+1. `GET /bootup` and `GET /activation` on the orchestrator: confirm directives were
+   issued as runs, not left as text.
+2. `GET /components` and `GET /runs`: read the actual blocker from run output —
+   truncated `node_modules`, missing toolchain, or unavailable service.
+3. `npm run init` repairs the shared dependency tree (npm 12 needs
+   `--allow-remote=all`, which the init script already supplies). Per-component
+   repair is `POST /activate` with `targets: [name]`, or
+   `node scripts/init-platform.js --component <name>`.
+4. Verify with `GET /components/{name}` and `GET /runs/{id}`; only report ready
+   when the re-check passes. Never mark a blocked component complete.
