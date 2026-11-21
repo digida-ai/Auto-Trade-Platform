@@ -5,19 +5,21 @@
   "description": "AutoTrading Ideal Platform - unified orchestrator for all bundled subplatforms",
   "workspaces": [
     "agentic-inbox-main",
+    "agent-desktop-main/npm",
     "freellmapi-main",
     "freellmapi-main/shared",
     "freellmapi-main/server",
     "freellmapi-main/client",
     "freellmapi-main/cli",
+    "freellmapi-main/desktop",
     "hyperframes-main",
     "hyperframes-main/packages/*",
     "LibreChat-main",
     "LibreChat-main/api",
     "LibreChat-main/client",
     "LibreChat-main/packages/*",
-    "Open-Higgsfield-AI-main",
-    "agent-desktop-main/npm"
+    "LibreChat-main/vendor/code",
+    "Open-Higgsfield-AI-main"
   ],
   "scripts": {
     "start": "node scripts/start-platform.js",

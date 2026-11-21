@@ -174,9 +174,11 @@ def _declared_python_modules(path: Path) -> List[str]:
 
 
 def _python_deps_installed(path: Path) -> Optional[bool]:
-    """True only when a real environment exists and the declared module is importable."""
-    if (path / ".venv").exists() or (path / "venv").exists():
-        return True
+    """True only when the shared environment exists and the declared module is importable.
+
+    Components never keep a private .venv; a local one is not accepted as proof
+    of readiness because the rest of the platform cannot resolve it.
+    """
     if _venv_python() is None:
         return False
     modules = _declared_python_modules(path)
@@ -212,18 +214,12 @@ def _shared_node_installed() -> bool:
 
 
 def _node_deps_installed(path: Path) -> bool:
-    """A completed install leaves node_modules/.package-lock.json behind.
+    """Readiness comes only from the single shared root node_modules.
 
-    npm creates nested node_modules directories while an install is still in
-    progress (workspace hoisting), so the directory alone proves nothing.
+    A component-local node_modules is not a valid install for this platform,
+    even if it contains a package-lock marker: all components are root
+    workspaces and resolve their dependencies from the root tree.
     """
-    local = path / "node_modules"
-    if (local / ".package-lock.json").exists():
-        try:
-            if any(p.is_dir() for p in local.iterdir() if p.name != ".bin"):
-                return True
-        except Exception:
-            pass
     return _shared_node_installed()
 
 
@@ -293,12 +289,12 @@ def _wrangler_available(comp_dir: Path) -> bool:
     """Wrangler ships as the component's devDependency; a global install is optional."""
     if shutil.which("wrangler"):
         return True
-    for base in (comp_dir / "node_modules", SHARED_NODE_MODULES):
-        if (base / "wrangler").is_dir():
+    base = SHARED_NODE_MODULES
+    if (base / "wrangler").is_dir():
+        return True
+    for exe in ("wrangler", "wrangler.cmd", "wrangler.ps1"):
+        if (base / ".bin" / exe).exists():
             return True
-        for exe in ("wrangler", "wrangler.cmd", "wrangler.ps1"):
-            if (base / ".bin" / exe).exists():
-                return True
     return False
 
 
@@ -613,19 +609,17 @@ def check_component(sp: Dict[str, Any]) -> Dict[str, Any]:
         if deps.get("node") is False:
             errors.append(
                 f"Node dependencies are not installed for {where}/ "
-                "(a truncated node_modules is ignored; npm writes .package-lock.json only on success)."
+                "(the shared root node_modules is incomplete; npm writes .package-lock.json only on success)."
             )
-            next_steps.append("Run `npm run init` from the platform root to install the shared node_modules.")
-            cmd = "npm ci" if (unit["path"] / "package-lock.json").exists() else "npm install"
-            next_steps.append(f"Per-component install: node scripts/init-platform.js --component {comp_name}")
-            next_steps.append(f"Local fallback: cd {comp_name}/{where} && {cmd}")
+            next_steps.append("Run `npm run init` from the platform root to repair the single shared node_modules.")
+            next_steps.append("Do not install per component: all JavaScript components are root workspaces.")
         if deps.get("python") is False:
             errors.append(
                 f"Python dependencies are not installed for {where}/ "
                 "(declared module is absent from the shared venv, or no venv exists)."
             )
-            next_steps.append("Run `npm run init` from the platform root to install the shared .venv.")
-            next_steps.append(f"Per-component install: node scripts/init-platform.js --component {comp_name}")
+            next_steps.append("Run `npm run init` from the platform root to repair the shared .venv.")
+            next_steps.append("Do not install per component: all Python requirements are in the root requirements.txt.")
         if deps.get("rust") is False:
             warnings.append(f"No Rust build output yet in {where}/ (target/ missing).")
             next_steps.append(f"cd {comp_name}/{where} && cargo build")

@@ -1,26 +1,45 @@
-# Shared Python requirements repository for the whole platform.
+# Single shared Python requirements file for the whole platform.
 #
-# `npm run init` (and `npm start` on first run) creates the single root .venv
-# and installs this file. Every Python module uses that environment; modules
-# with no third-party dependencies are listed here for completeness.
+# `npm run init` creates ONE root .venv and installs this file. No component
+# installs its own requirements, and no component keeps a private .venv.
+# Local Python packages stay editable so their source remains in each component.
 
-# AutoHedge
--r AutoHedge-main/requirements.txt
+# AutoHedge (inlined from AutoHedge-main/requirements.txt)
+swarms
+pydantic
+loguru
+swarm-models
+fastapi
+uvicorn
+requests
+httpx
+solders
 -e ./AutoHedge-main
-python-dotenv>=1.0
 
-# claude-ads
--r claude-ads-main/requirements.txt
-
-# Local Python packages (editable: source stays in each component directory)
+# claude-ads (inlined from claude-ads-main/requirements.txt)
+# Bounded pins carry upstream CVE fixes; security notes stay in that file.
+requests>=2.32.4,<3.0.0
+playwright>=1.56.0,<2.0.0
+urllib3>=2.8.0,<3.0.0
+cryptography>=48.0.1,<49.0.0
+Pillow>=12.3.0,<13.0.0
+weasyprint>=70.0,<71.0
+reportlab>=4.0,<5.0.0
+matplotlib>=3.8.0,<4.0.0
 -e ./claude-ads-main
+
+# Other local Python packages (editable; their pyproject dependencies resolve here)
 -e ./Scrapling-main
 -e ./vibetrading-main
 -e ./Open-LLM-VTuber-main
 
+python-dotenv>=1.0
+
 # Resolution constraints live in constraints.txt (mcp<2 keeps swarms/AutoHedge
 # and Open-LLM-VTuber importable; see the file for the conflict details).
-
+#
+# FinceptTerminal's Qt/CMake stack is a separate toolchain with a conflicting
+# mcp pin, so its own requirements stay outside the shared venv.
 # Pix-Payment-System/python and grok-jev-router are standard-library only.
-# agentic-inbox, freellmapi, hyperframes, LibreChat and Open-Higgsfield-AI are
-# JavaScript and are covered by the root package.json workspaces.
+# All JavaScript components resolve from the single root node_modules via the
+# root package.json workspaces.

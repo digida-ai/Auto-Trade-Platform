@@ -97,7 +97,7 @@ def bootup_initiative() -> Dict[str, Any]:
 
         # Check component readiness
         try:
-            rd = component_readiness_all(name) or {}
+            rd = component_readiness(name) or {}
         except Exception as e:
             rd = {"status": "blocked", "errors": [str(e)], "warnings": [], "next_steps": [], "manifests": [], "units": [], "services": [], "missing_tools": [], "deps_installed": False}
 

@@ -10,10 +10,13 @@
  *   SKIP_INIT=1 npm start                     skip the check
  *
  * Guarantees:
+ *   - ONE shared node_modules at the root: every JavaScript component is an
+ *     npm workspace, and no component installs dependencies into its own folder
+ *   - ONE shared Python environment (.venv) and ONE root requirements.txt;
+ *     per-component requirements are not installed separately
  *   - a partial node_modules is detected (npm only writes
  *     node_modules/.package-lock.json on success) and removed before reinstall
- *   - the fingerprint covers nested manifests (LibreChat api/client,
- *     freellmapi server/client, Pix rust/python), not just the root ones
+ *   - the fingerprint covers nested manifests so a changed subproject retriggers init
  *   - every component gets its .env scaffolded from its own .env.example
  *   - per-subplatform agents are regenerated from their real manifests
  *   - any failing step exits non-zero; no silent "starting anyway"
@@ -21,6 +24,7 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
@@ -101,6 +105,31 @@ function envFileValue(key) {
   return null;
 }
 
+// npm >= 11.7 enforces the `allow-scripts` RFC. A machine-level value in the
+// operator's ~/.npmrc is inherited by `npm run`, which makes a project-scoped
+// install fail outright (EALLOWSCRIPTS) and would otherwise skip the binary
+// downloads for esbuild, workerd, puppeteer and friends. Mirror the operator's
+// npmrc into the project cache without that key so registry/auth settings are
+// preserved and the shared install is governed by the project only.
+function localNpmrc() {
+  const source = process.env.npm_config_userconfig || path.join(os.homedir(), '.npmrc');
+  const target = path.join(cacheDir, 'npmrc');
+  try {
+    const filtered = fs
+      .readFileSync(source, 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*allow-scripts\s*[=:]/.test(line))
+      .join('\n');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== filtered) {
+      fs.writeFileSync(target, filtered, 'utf8');
+    }
+    return target;
+  } catch {
+    return null;
+  }
+}
+
 function childEnv() {
   const env = {
     ...process.env,
@@ -108,6 +137,12 @@ function childEnv() {
     UV_PYTHON_INSTALL_DIR: process.env.UV_PYTHON_INSTALL_DIR || path.join(cacheDir, 'uv-python'),
     npm_config_cache: process.env.npm_config_cache || process.env.NPM_CONFIG_CACHE || path.join(cacheDir, 'npm'),
   };
+  // `npm run` forwards its own config as npm_config_* env vars; the allow-scripts
+  // value must not leak into the child install.
+  delete env.npm_config_allow_scripts;
+  delete env['npm_config_allow-scripts'];
+  const userconfig = localNpmrc();
+  if (userconfig) env.npm_config_userconfig = userconfig;
   // Prefer an explicit pin, then the project-local Node 24 toolchain, then whatever
   // Node is running us. Node 24 ships npm 11, which the workspace install expects.
   const pinnedNode = path.join(cacheDir, 'toolchains', 'node24');
@@ -225,60 +260,43 @@ function npmMajorVersion() {
   return Number(String(result.stdout || '').trim().split('.')[0]) || 0;
 }
 
-// npm 12 refuses non-registry tarballs by default, and xlsx resolves from a CDN.
+// npm 12 refuses non-registry tarballs and git dependencies by default:
+// xlsx resolves from a CDN and Electron's node-gyp comes from a git URL.
 function npmCompatArgs() {
-  return npmMajorVersion() >= 12 ? ['--allow-remote=all'] : [];
+  return npmMajorVersion() >= 12 ? ['--allow-remote=all', '--allow-git=all'] : [];
 }
 
 // npm 12 also blocks dependency lifecycle scripts until approved, which would
 // silently skip the binary downloads for esbuild, workerd, puppeteer and friends.
-function approveInstallScripts(cwd = root) {
+function approveInstallScripts() {
   if (npmMajorVersion() < 12) return;
   const listed = spawnSync('npm', ['install-scripts', 'ls'], {
-    cwd,
+    cwd: root,
     encoding: 'utf8',
     shell: process.platform === 'win32',
   });
   const blocked = String(listed.stdout || '').includes('not covered by allowScripts');
   if (!blocked) return;
   log('npm 12 blocked dependency install scripts; approving them and rebuilding');
-  run('npm', ['install-scripts', 'approve', '--all'], cwd);
-  run('npm', ['rebuild'], cwd);
+  run('npm', ['install-scripts', 'approve', '--all'], root);
+  run('npm', ['rebuild'], root);
 }
 
-function packageManagerFor(dir) {
-  if (fs.existsSync(path.join(dir, 'bun.lock')) || fs.existsSync(path.join(dir, 'bun.lockb'))) return 'bun';
-  if (fs.existsSync(path.join(dir, 'pnpm-lock.yaml'))) return 'pnpm';
-  return 'npm';
+function componentManifest(dir) {
+  if (fs.existsSync(path.join(dir, 'package.json'))) return 'package.json';
+  if (fs.existsSync(path.join(dir, 'pyproject.toml'))) return 'pyproject.toml';
+  if (fs.existsSync(path.join(dir, 'requirements.txt'))) return 'requirements.txt';
+  return null;
 }
 
-function installNodeComponent(dir) {
-  if (!fs.existsSync(path.join(dir, 'package.json'))) return false;
-  // A workspace root install already covers components listed in root workspaces.
-  const pm = packageManagerFor(dir);
-  if (pm === 'bun') {
-    run('bun', ['install'], dir);
-    return true;
-  }
-  const args = ['install', '--no-audit', '--no-fund', '--legacy-peer-deps', '--workspaces=false', ...npmCompatArgs()];
-  run(pm, args, dir);
-  approveInstallScripts(dir);
-  return true;
-}
-
-function installPythonComponent(dir) {
-  if (!fs.existsSync(path.join(dir, 'pyproject.toml')) && !fs.existsSync(path.join(dir, 'requirements.txt'))) return false;
-  if (!fs.existsSync(sharedVenv)) {
-    run('uv', ['venv', '--python', '3.12', '--seed', '.venv']);
-  }
-  const args = ['pip', 'install'];
-  if (fs.existsSync(constraintsPath)) args.push('--constraint', 'constraints.txt');
-  if (fs.existsSync(path.join(dir, 'requirements.txt'))) {
-    args.push('-r', path.relative(root, path.join(dir, 'requirements.txt')));
-  } else {
-    args.push('-e', path.relative(root, dir));
-  }
-  run('uv', args);
+// Components never install into their own folder. JavaScript dependencies come
+// from the single root npm workspace install; Python dependencies come from the
+// single root requirements.txt installed into the shared .venv. This only
+// validates that the component still has a manifest the shared install covers.
+function componentUsesSharedDeps(dir) {
+  const manifest = componentManifest(dir);
+  if (!manifest) return false;
+  log(`  ${path.relative(root, dir)}: ${manifest} covered by root ${manifest === 'package.json' ? 'node_modules' : 'requirements.txt/.venv'}`);
   return true;
 }
 
@@ -357,10 +375,10 @@ function main() {
     }
     const dir = path.join(root, sp.component);
     if (!fs.existsSync(dir)) throw new Error(`component directory missing: ${sp.component}`);
-    const installed = installNodeComponent(dir) || installPythonComponent(dir);
+    const usesShared = componentUsesSharedDeps(dir);
     generateAgents();
-    writeMarker({ last_component: sp.name, last_component_installed: installed });
-    log(`component ${sp.name} initialized`);
+    writeMarker({ last_component: sp.name, uses_shared_deps: usesShared });
+    log(`component ${sp.name} checked; ${usesShared ? 'shared node_modules/.venv cover its manifest' : 'toolchain-only component, no shared dependency manifest'}`);
     return;
   }
 

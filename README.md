@@ -123,6 +123,12 @@ freellmapi `<25`), creates the shared `.venv` with Python 3.12, and writes the
 free/local defaults into `.env`. Caches live under `.cache/` (or set
 `UV_CACHE_DIR` / `npm_config_cache`).
 
+`node scripts/init-platform.js --component <name>` only validates that a
+component's manifest is covered by the shared tree and regenerates its agent
+files — it never installs into the component folder. On npm 12 the initializer
+passes `--allow-remote=all --allow-git=all`, because the workspace tree contains
+a CDN tarball (xlsx) and a git dependency (Electron's node-gyp).
+
 The generated `.env` sets `JEV_OFFLINE=1`, which makes `grok-jev-router` use its
 bundled deterministic local evaluator instead of a paid TypeSafe key. The local
 evaluator stays fail-closed (risky/external actions still resolve to
